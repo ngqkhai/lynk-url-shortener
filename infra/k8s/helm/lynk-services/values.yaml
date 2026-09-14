@@ -1,0 +1,29 @@
+urlService:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/ngqkhai/lynk-url-service
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 3001
+
+  ingress:
+    enabled: true
+    host: ""  # Empty = wildcard match, uses path only
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  env:
+    NODE_ENV: production
+    PORT: "3001"
+    HOST: "0.0.0.0"
+    LOG_LEVEL: info

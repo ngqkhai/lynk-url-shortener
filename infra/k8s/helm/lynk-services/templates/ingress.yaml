@@ -1,0 +1,35 @@
+{{- if .Values.urlService.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: url-service-ingress
+  namespace: lynk-staging
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: url-service
+                port:
+                  number: {{ .Values.urlService.service.port }}
+          - path: /api/v1/urls
+            pathType: Prefix
+            backend:
+              service:
+                name: url-service
+                port:
+                  number: {{ .Values.urlService.service.port }}
+          - path: /
+            pathType: Exact
+            backend:
+              service:
+                name: url-service
+                port:
+                  number: {{ .Values.urlService.service.port }}
+{{- end }}

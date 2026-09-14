@@ -1,0 +1,34 @@
+deployment:
+  kind: DaemonSet
+
+service:
+  type: NodePort
+
+ports:
+  web:
+    port: 8000
+    hostPort: 80
+    expose:
+      default: true
+    exposedPort: 80
+  websecure:
+    port: 8443
+    hostPort: 443
+    expose:
+      default: true
+    exposedPort: 443
+
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+nodeSelector:
+  ingress-ready: "true"
+
+additionalArguments:
+  - "--api.insecure=true"
+
+ingressRoute:
+  dashboard:
+    enabled: false

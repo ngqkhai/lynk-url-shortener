@@ -1,0 +1,18 @@
+{{- if .Values.urlService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: url-service
+  namespace: lynk-staging
+  labels:
+    app: url-service
+spec:
+  selector:
+    app: url-service
+  ports:
+    - name: http
+      port: {{ .Values.urlService.service.port }}
+      targetPort: http
+      protocol: TCP
+  type: ClusterIP
+{{- end }}
