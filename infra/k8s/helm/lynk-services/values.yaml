@@ -4,7 +4,7 @@ urlService:
 
   image:
     repository: ghcr.io/ngqkhai/lynk-url-service
-    tag: "latest"
+    tag: "7997f9fd460a1f442a5391a7b7ec94f99c99f145"
     pullPolicy: IfNotPresent
 
   service:
