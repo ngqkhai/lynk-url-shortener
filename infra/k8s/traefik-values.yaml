@@ -24,10 +24,10 @@ tolerations:
     effect: NoSchedule
 
 nodeSelector:
-  ingress-ready: "true"
+  ingress-ready: 'true'
 
 additionalArguments:
-  - "--api.insecure=true"
+  - '--api.insecure=true'
 
 ingressRoute:
   dashboard:

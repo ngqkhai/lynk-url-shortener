@@ -1,0 +1,5 @@
+node_modules/
+dist/
+coverage/
+package-lock.json
+infra/k8s/helm/**/templates/

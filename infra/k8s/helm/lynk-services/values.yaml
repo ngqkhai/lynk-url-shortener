@@ -12,7 +12,7 @@ urlService:
 
   ingress:
     enabled: true
-    host: ""  # Empty = wildcard match, uses path only
+    host: "" # Empty = wildcard match, uses path only
 
   resources:
     requests:

@@ -15,28 +15,28 @@
 ```mermaid
 graph TB
     Client["Client (Browser / Postman / curl)"]
-    
+
     subgraph "Edge / Ingress Layer"
         GW["Traefik API Gateway<br/>• Path Routing & Rate Limiting<br/>• X-Request-ID Injection & CORS"]
     end
-    
+
     subgraph "Microservices Layer"
         URL_SVC["URL Service<br/>(TypeScript / Fastify)<br/>Port 3001"]
         RED_SVC["Redirect Service<br/>(TypeScript / Fastify)<br/>Port 3002"]
         ANA_SVC["Analytics Service<br/>(Python / FastAPI)<br/>Port 3003"]
     end
-    
+
     subgraph "Data Storage Layer (Decoupled Ownership)"
         PG_URL[("PostgreSQL: lynk_urls<br/>Source-of-Truth URL Data")]
         PG_RED[("PostgreSQL: lynk_redirects<br/>Optimized Read Replica")]
         Redis[("Redis 7 Cache<br/>Sub-millisecond Read Path")]
         PG_ANA[("PostgreSQL: lynk_analytics<br/>Raw Clicks & Daily Aggregates")]
     end
-    
+
     subgraph "Event Streaming (KRaft Mode)"
         Kafka["Apache Kafka (KRaft Mode)<br/>• Topic: url.created (Data Sync)<br/>• Topic: url.clicked (Click Stream)"]
     end
-    
+
     subgraph "Observability Layer"
         Otel["OpenTelemetry SDK (W3C traceparent)"]
         Jaeger["Jaeger (Distributed Traces)"]
@@ -48,19 +48,19 @@ graph TB
     GW -->|POST /api/v1/urls| URL_SVC
     GW -->|GET /:shortCode| RED_SVC
     GW -->|GET /api/v1/analytics/*| ANA_SVC
-    
+
     URL_SVC -->|Write Master| PG_URL
     URL_SVC -->|Publish url.created| Kafka
-    
+
     Kafka -->|Consume url.created| RED_SVC
     RED_SVC -->|Sync Local Replica| PG_RED
     RED_SVC -->|Warm Hot Cache| Redis
     RED_SVC -.->|Fallback HTTP on Cache Miss| URL_SVC
     RED_SVC -->|Publish url.clicked + Trace Headers| Kafka
-    
+
     Kafka -->|Consume url.clicked| ANA_SVC
     ANA_SVC -->|Write Clicks & Stats| PG_ANA
-    
+
     URL_SVC -.->|Traces & Metrics| Otel
     RED_SVC -.->|Traces & Metrics| Otel
     ANA_SVC -.->|Traces & Metrics| Otel
@@ -73,15 +73,15 @@ graph TB
 
 ## 🚀 Tính năng nổi bật & Công nghệ sử dụng
 
-| Lĩnh vực | Công nghệ | Mục đích sử dụng |
-| :--- | :--- | :--- |
-| **Backend & Polyglot** | TypeScript, Fastify, Python 3.12, FastAPI | URL CRUD, High-performance redirect, Analytics processing. |
-| **Data & Caching** | PostgreSQL 16, Redis 7, Drizzle ORM, SQLAlchemy | Lưu trữ bền vững, Hybrid caching, Schema migrations. |
-| **Event Streaming** | Apache Kafka (KRaft mode) | Xử lý click stream bất đồng bộ và đồng bộ dữ liệu giữa các services. |
-| **Edge & Ingress** | Traefik v3 | Reverse proxy, Ingress Controller, Rate limiting, Request ID propagation. |
-| **Observability** | OpenTelemetry, Prometheus, Grafana, Jaeger | RED metrics, Distributed tracing xuyên qua HTTP & Kafka headers. |
-| **Orchestration & GitOps** | Docker, Kubernetes (`kind`), Helm, ArgoCD | Tự động hóa triển khai, declarative infrastructure, self-healing. |
-| **CI/CD** | GitHub Actions, GHCR (`ghcr.io`) | Lint, Unit/Integration tests, multi-stage Docker build, image scanning. |
+| Lĩnh vực                   | Công nghệ                                       | Mục đích sử dụng                                                          |
+| :------------------------- | :---------------------------------------------- | :------------------------------------------------------------------------ |
+| **Backend & Polyglot**     | TypeScript, Fastify, Python 3.12, FastAPI       | URL CRUD, High-performance redirect, Analytics processing.                |
+| **Data & Caching**         | PostgreSQL 16, Redis 7, Drizzle ORM, SQLAlchemy | Lưu trữ bền vững, Hybrid caching, Schema migrations.                      |
+| **Event Streaming**        | Apache Kafka (KRaft mode)                       | Xử lý click stream bất đồng bộ và đồng bộ dữ liệu giữa các services.      |
+| **Edge & Ingress**         | Traefik v3                                      | Reverse proxy, Ingress Controller, Rate limiting, Request ID propagation. |
+| **Observability**          | OpenTelemetry, Prometheus, Grafana, Jaeger      | RED metrics, Distributed tracing xuyên qua HTTP & Kafka headers.          |
+| **Orchestration & GitOps** | Docker, Kubernetes (`kind`), Helm, ArgoCD       | Tự động hóa triển khai, declarative infrastructure, self-healing.         |
+| **CI/CD**                  | GitHub Actions, GHCR (`ghcr.io`)                | Lint, Unit/Integration tests, multi-stage Docker build, image scanning.   |
 
 ---
 
@@ -129,6 +129,6 @@ Chi tiết hướng dẫn xem tại: [Local Setup Runbook](docs/runbook/local-se
 
 ## 📜 Tài liệu kỹ thuật & ADRs (Architecture Decision Records)
 
-* [ADR-000: Walking Skeleton & Day-1 Continuous Delivery](docs/adr/000-walking-skeleton-and-ci-cd.md)
-* [Runbook: Local Development Setup](docs/runbook/local-setup.md)
-* [Master Engineering Plan](docs/lynk-project-plan.md)
+- [ADR-000: Walking Skeleton & Day-1 Continuous Delivery](docs/adr/000-walking-skeleton-and-ci-cd.md)
+- [Runbook: Local Development Setup](docs/runbook/local-setup.md)
+- [Master Engineering Plan](docs/lynk-project-plan.md)
