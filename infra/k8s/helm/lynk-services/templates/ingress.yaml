@@ -3,13 +3,18 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: url-service-ingress
-  namespace: lynk-staging
+  namespace: {{ .Release.Namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
   rules:
+    {{- if .Values.urlService.ingress.host }}
+    - host: {{ .Values.urlService.ingress.host | quote }}
+      http:
+    {{- else }}
     - http:
+    {{- end }}
         paths:
           - path: /health
             pathType: Prefix
@@ -25,11 +30,18 @@ spec:
                 name: url-service
                 port:
                   number: {{ .Values.urlService.service.port }}
-          - path: /
-            pathType: Exact
+          - path: /documentation
+            pathType: Prefix
             backend:
               service:
                 name: url-service
                 port:
                   number: {{ .Values.urlService.service.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: redirect-service
+                port:
+                  number: {{ .Values.redirectService.service.port }}
 {{- end }}

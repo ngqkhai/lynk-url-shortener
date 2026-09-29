@@ -11,6 +11,7 @@ COPY services/url-service/tsconfig*.json ./services/url-service/
 RUN npm ci --workspace=@lynk/url-service
 
 COPY services/url-service/src/ ./services/url-service/src/
+COPY services/url-service/drizzle/ ./services/url-service/drizzle/
 RUN npm run build --workspace=@lynk/url-service
 
 # Stage 2: Production Minimal Runtime
@@ -27,6 +28,7 @@ COPY services/url-service/package*.json ./services/url-service/
 RUN npm ci --workspace=@lynk/url-service --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/services/url-service/dist ./dist
+COPY --from=builder /app/services/url-service/drizzle ./drizzle
 
 # Security: Run as unprivileged non-root user (node uid:1000)
 USER node

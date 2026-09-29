@@ -1,0 +1,16 @@
+global:
+  migrationHookMode: helm
+
+urlService:
+  image:
+    repository: lynk-url-service
+    pullPolicy: Never
+  ingress:
+    host: lynk.localhost
+  env:
+    PUBLIC_BASE_URL: http://lynk.localhost
+
+redirectService:
+  image:
+    repository: lynk-redirect-service
+    pullPolicy: Never

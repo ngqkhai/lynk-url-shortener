@@ -29,7 +29,7 @@ graph TB
     subgraph "Data Storage Layer (Decoupled Ownership)"
         PG_URL[("PostgreSQL: lynk_urls<br/>Source-of-Truth URL Data")]
         PG_RED[("PostgreSQL: lynk_redirects<br/>Optimized Read Replica")]
-        Redis[("Redis 7 Cache<br/>Sub-millisecond Read Path")]
+        Redis[("Redis 8 Cache<br/>Low-latency Read Path")]
         PG_ANA[("PostgreSQL: lynk_analytics<br/>Raw Clicks & Daily Aggregates")]
     end
 
@@ -76,7 +76,7 @@ graph TB
 | Lĩnh vực                   | Công nghệ                                       | Mục đích sử dụng                                                          |
 | :------------------------- | :---------------------------------------------- | :------------------------------------------------------------------------ |
 | **Backend & Polyglot**     | TypeScript, Fastify, Python 3.12, FastAPI       | URL CRUD, High-performance redirect, Analytics processing.                |
-| **Data & Caching**         | PostgreSQL 16, Redis 7, Drizzle ORM, SQLAlchemy | Lưu trữ bền vững, Hybrid caching, Schema migrations.                      |
+| **Data & Caching**         | PostgreSQL 16, Redis 8, Drizzle ORM, SQLAlchemy | Lưu trữ bền vững, Hybrid caching, Schema migrations.                      |
 | **Event Streaming**        | Apache Kafka (KRaft mode)                       | Xử lý click stream bất đồng bộ và đồng bộ dữ liệu giữa các services.      |
 | **Edge & Ingress**         | Traefik v3                                      | Reverse proxy, Ingress Controller, Rate limiting, Request ID propagation. |
 | **Observability**          | OpenTelemetry, Prometheus, Grafana, Jaeger      | RED metrics, Distributed tracing xuyên qua HTTP & Kafka headers.          |
@@ -93,23 +93,11 @@ make setup
 make lint
 make test
 
-# 2. Khởi tạo cụm Kubernetes local kèm Traefik & ArgoCD
-make k8s-up
+# 2. Deploy working tree hiện tại vào kind (PostgreSQL + Redis trong cluster)
+make k8s-local-deploy
 
-# 3. Build Docker image và nạp vào cluster
-make docker-build-url
-kind load docker-image lynk-url-service:latest --name lynk-cluster
-
-# 4. Triển khai ứng dụng qua Helm
-helm upgrade --install lynk-services ./infra/k8s/helm/lynk-services \
-  --namespace lynk-staging \
-  --set urlService.image.repository=lynk-url-service \
-  --set urlService.image.tag=latest \
-  --set urlService.image.pullPolicy=Never
-
-# 5. Kiểm tra liveness & readiness qua Ingress
-curl -i http://localhost/health
-curl -i http://localhost/health/ready
+# 3. Kiểm tra readiness qua Ingress
+curl -i --resolve lynk.localhost:80:127.0.0.1 http://lynk.localhost/health/ready
 ```
 
 Chi tiết hướng dẫn xem tại: [Local Setup Runbook](docs/runbook/local-setup.md).
@@ -119,8 +107,8 @@ Chi tiết hướng dẫn xem tại: [Local Setup Runbook](docs/runbook/local-se
 ## 🗺️ Lộ trình phát triển 6 Sprints
 
 - [x] **Sprint 0: Foundation & Walking Skeleton** — Monorepo, Fastify Skeleton, K8s (`kind`), Traefik, ArgoCD, Day-1 CI/CD.
-- [ ] **Sprint 1: Core URL Shortening Capability** — NanoID base62, PostgreSQL, Drizzle ORM, 302 redirect, TTL handling.
-- [ ] **Sprint 2: High-Performance Redirect Path** — Redis cache-aside, tách `redirect-service`, HPA, k6 caching benchmark.
+- [x] **Sprint 1: Core URL Shortening Capability** — NanoID base62, PostgreSQL, Drizzle ORM, 302 redirect, TTL handling.
+- [ ] **Sprint 2: High-Performance Redirect Path** — Redis cache-aside, tách `redirect-service`, k6 caching benchmark; chờ số liệu staging.
 - [ ] **Sprint 3: Non-Blocking Event-Driven Analytics** — Kafka KRaft, `analytics-service` (Python), async click tracking.
 - [ ] **Sprint 4: End-to-End Observability** — Prometheus RED metrics, Grafana dashboards, OpenTelemetry + Jaeger tracing.
 - [ ] **Sprint 5: Production Hardening & Portfolio** — Rate limiting, Trivy security scan, backup scripts, hoàn thiện 8 ADRs.
@@ -130,5 +118,10 @@ Chi tiết hướng dẫn xem tại: [Local Setup Runbook](docs/runbook/local-se
 ## 📜 Tài liệu kỹ thuật & ADRs (Architecture Decision Records)
 
 - [ADR-000: Walking Skeleton & Day-1 Continuous Delivery](docs/adr/000-walking-skeleton-and-ci-cd.md)
+- [ADR-001: NanoID Base62 Short Code Strategy](docs/adr/001-short-code-strategy.md)
+- [ADR-002: 302 Redirect Status Code](docs/adr/002-redirect-status-code.md)
+- [ADR-003: Redis Cache-Aside](docs/adr/003-redis-cache-aside.md)
+- [ADR-004: Redirect Service Decomposition](docs/adr/004-redirect-service-decomposition.md)
+- [Experiment 01: Caching Benchmark](docs/experiments/01-caching.md)
 - [Runbook: Local Development Setup](docs/runbook/local-setup.md)
 - [Master Engineering Plan](docs/lynk-project-plan.md)

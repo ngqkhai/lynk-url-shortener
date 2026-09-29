@@ -1,10 +1,13 @@
+global:
+  imageTag: '7997f9fd460a1f442a5391a7b7ec94f99c99f145'
+  migrationHookMode: argocd
+
 urlService:
   enabled: true
   replicaCount: 1
 
   image:
     repository: ghcr.io/ngqkhai/lynk-url-service
-    tag: "7997f9fd460a1f442a5391a7b7ec94f99c99f145"
     pullPolicy: IfNotPresent
 
   service:
@@ -12,7 +15,7 @@ urlService:
 
   ingress:
     enabled: true
-    host: "" # Empty = wildcard match, uses path only
+    host: '' # Empty = wildcard match, uses path only
 
   resources:
     requests:
@@ -24,6 +27,50 @@ urlService:
 
   env:
     NODE_ENV: production
-    PORT: "3001"
-    HOST: "0.0.0.0"
+    PORT: '3001'
+    HOST: '0.0.0.0'
     LOG_LEVEL: info
+    PUBLIC_BASE_URL: 'https://lynk.example.com'
+
+  database:
+    existingSecret: url-service-db
+    secretKey: DATABASE_URL
+
+redirectService:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/ngqkhai/lynk-redirect-service
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 3002
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  env:
+    NODE_ENV: production
+    PORT: '3002'
+    HOST: '0.0.0.0'
+    LOG_LEVEL: info
+    REDIS_URL: 'redis://lynk-redis-master:6379'
+    URL_SERVICE_BASE_URL: 'http://url-service:3001'
+    CACHE_ENABLED: 'true'
+    CACHE_TTL_SECONDS: '3600'
+    CACHE_OPERATION_TIMEOUT_MS: '50'
+    UPSTREAM_TIMEOUT_MS: '500'
+
+  database:
+    existingSecret: redirect-service-db
+    secretKey: DATABASE_URL
+
+  redis:
+    existingSecret: lynk-redis-auth
+    passwordKey: redis-password

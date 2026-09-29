@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: url-service
-  namespace: lynk-staging
+  namespace: {{ .Release.Namespace }}
   labels:
     app: url-service
     version: {{ .Chart.AppVersion | quote }}
@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: url-service
-          image: "{{ .Values.urlService.image.repository }}:{{ .Values.urlService.image.tag }}"
+          image: "{{ .Values.urlService.image.repository }}:{{ .Values.global.imageTag }}"
           imagePullPolicy: {{ .Values.urlService.image.pullPolicy }}
           ports:
             - name: http
@@ -30,6 +30,11 @@ spec:
             - name: {{ $key }}
               value: {{ $val | quote }}
             {{- end }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.urlService.database.existingSecret }}
+                  key: {{ .Values.urlService.database.secretKey }}
           livenessProbe:
             httpGet:
               path: /health

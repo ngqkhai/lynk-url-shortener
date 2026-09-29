@@ -71,7 +71,7 @@ graph TB
     subgraph "Data Storage Layer (Decoupled Ownership)"
         PG_URL[("PostgreSQL: lynk_urls<br/>Source-of-Truth URL Data")]
         PG_RED[("PostgreSQL: lynk_redirects<br/>Optimized Read Replica")]
-        Redis[("Redis 7 Cache<br/>Sub-millisecond Read Path")]
+        Redis[("Redis 8 Cache<br/>Low-latency Read Path")]
         PG_ANA[("PostgreSQL: lynk_analytics<br/>Raw Clicks & Daily Aggregates")]
     end
 
@@ -268,16 +268,16 @@ sequenceDiagram
 
 > **Mục tiêu năng lực hệ thống:** Tách riêng luồng Redirect thành service độc lập, tích hợp Redis Caching đạt độ trễ cực thấp, kiểm chứng bằng thực nghiệm benchmark.
 
-| Mã Task          | Phân loại  | Nội dung công việc                                                                                                                 |
-| :--------------- | :--------: | :--------------------------------------------------------------------------------------------------------------------------------- |
-| **[BE-201]**     |  **MUST**  | Tách riêng `redirect-service` (TypeScript/Fastify), cấu hình DB read-replica `lynk_redirects`.                                     |
-| **[BE-202]**     |  **MUST**  | Tích hợp **Redis 7** với Cache-Aside pattern (TTL 1 giờ, đồng bộ với thời gian hết hạn của link).                                  |
-| **[GW-201]**     |  **MUST**  | Cấu hình Traefik định tuyến: `POST /api/v1/urls` ➔ `url-service`, `GET /:shortCode` ➔ `redirect-service`.                          |
-| **[DEVOPS-201]** |  **MUST**  | Deploy Redis standalone qua Bitnami Helm Chart trên Kubernetes `kind`.                                                             |
-| **[DEVOPS-202]** | **SHOULD** | Cấu hình **Horizontal Pod Autoscaler (HPA)** cho `redirect-service` trên K8s.                                                      |
-| **[EXP-201]**    |  **MUST**  | **Thực hiện Experiment A (Caching):** Chạy k6 benchmark so sánh PostgreSQL-only vs Redis+PostgreSQL; ghi lại bảng số liệu thực tế. |
-| **[EXP-202]**    | **SHOULD** | **Thực hiện Experiment D (Redis Failure):** Giả lập Redis sập và kiểm chứng khả năng tự fallback về PostgreSQL.                    |
-| **[DOC-201]**    | **SHOULD** | Viết `ADR-003` (Redis Caching Strategy) và `ADR-004` (Tách riêng Redirect Service).                                                |
+| Mã Task          |  Phân loại   | Nội dung công việc                                                                                                                 |
+| :--------------- | :----------: | :--------------------------------------------------------------------------------------------------------------------------------- |
+| **[BE-201]**     |   **MUST**   | Tách riêng `redirect-service` (TypeScript/Fastify), cấu hình DB read-replica `lynk_redirects`.                                     |
+| **[BE-202]**     |   **MUST**   | Tích hợp **Redis 8** với Cache-Aside pattern (TTL 1 giờ, đồng bộ với thời gian hết hạn của link).                                  |
+| **[GW-201]**     |   **MUST**   | Cấu hình Traefik định tuyến: `POST /api/v1/urls` ➔ `url-service`, `GET /:shortCode` ➔ `redirect-service`.                          |
+| **[DEVOPS-201]** |   **MUST**   | Deploy Redis standalone qua Bitnami Helm Chart trên Kubernetes `kind`.                                                             |
+| **[DEVOPS-202]** | **DEFERRED** | Cấu hình **Horizontal Pod Autoscaler (HPA)** cho `redirect-service` trong Sprint 4 cùng metrics-server.                            |
+| **[EXP-201]**    |   **MUST**   | **Thực hiện Experiment A (Caching):** Chạy k6 benchmark so sánh PostgreSQL-only vs Redis+PostgreSQL; ghi lại bảng số liệu thực tế. |
+| **[EXP-202]**    |  **SHOULD**  | **Thực hiện Experiment D (Redis Failure):** Giả lập Redis sập và kiểm chứng khả năng tự fallback về PostgreSQL.                    |
+| **[DOC-201]**    |  **SHOULD**  | Viết `ADR-003` (Redis Caching Strategy) và `ADR-004` (Tách riêng Redirect Service).                                                |
 
 - **Quality Gates:**
   - _Performance:_ Có file script benchmark `benchmarks/k6-redirect.js` và bảng số liệu thực tế lưu tại `docs/experiments/01-caching.md`.

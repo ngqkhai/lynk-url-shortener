@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: lynk_urls
+      POSTGRES_USER: lynk
+      POSTGRES_PASSWORD: lynk_local_only
+    ports:
+      - '5432:5432'
+    volumes:
+      - lynk-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lynk -d lynk_urls']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redirect-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: lynk_redirects
+      POSTGRES_USER: lynk
+      POSTGRES_PASSWORD: lynk_local_only
+    ports:
+      - '5433:5432'
+    volumes:
+      - lynk-redirect-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lynk -d lynk_redirects']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    command: ['redis-server', '--requirepass', 'lynk_local_only']
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'lynk_local_only', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lynk-postgres:
+  lynk-redirect-postgres:
