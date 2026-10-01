@@ -11,7 +11,7 @@ Hướng dẫn thiết lập môi trường phát triển cục bộ từ đầu
 - **Docker:** `>= 24.x` & Docker Compose
 - **kubectl:** `>= 1.28.x`
 - **Helm:** `>= 3.12.x`
-- **kind:** `>= 0.20.x` (tự động cài đặt qua script nếu chưa có)
+- **kind:** `>= 0.20.x` (cài đặt trước khi chạy script)
 
 ---
 
@@ -81,11 +81,11 @@ curl -i --resolve lynk.localhost:80:127.0.0.1 \
 curl -i --resolve lynk.localhost:80:127.0.0.1 http://lynk.localhost/DemoLink
 ```
 
-Ingress chỉ nhận host `lynk.localhost` cho bản local. Lệnh `--resolve` đảm bảo `curl` trỏ tới `127.0.0.1` mà không cần sửa DNS. Helm local dùng namespace `lynk-local`; Argo CD Application hiện có vẫn dùng `lynk-staging`.
+Ingress chỉ nhận host `lynk.localhost` cho bản local. Lệnh `--resolve` đảm bảo `curl` trỏ tới `127.0.0.1` mà không cần sửa DNS. Helm local dùng namespace `lynk-local`; cluster kind không cài Argo CD hay tạo `lynk-staging`.
 
 ## Staging Kubernetes + Supabase
 
-`kind` là môi trường local/integration. Staging thật dùng Kubernetes, Redis 8 trong cluster và hai Supabase PostgreSQL database riêng bên ngoài cluster. Người vận hành phải tạo các Secret trước khi sync; ArgoCD chạy hai migration Job `PreSync`, và migration thất bại sẽ chặn rollout tương ứng.
+`kind` là môi trường local/integration, không dùng cho staging. Nếu triển khai staging trên một cluster khác, môi trường đó có thể dùng Argo CD, Redis 8 trong cluster và hai Supabase PostgreSQL database riêng. Người vận hành phải tạo các Secret trước khi sync; Argo CD chạy hai migration Job `PreSync`, và migration thất bại sẽ chặn rollout tương ứng.
 
 ### Redis failure test
 
@@ -106,19 +106,9 @@ Xác nhận error rate bằng 0 trước khi ghi kết quả vào báo cáo expe
 
 ## 🎛️ Truy cập các bảng điều khiển (Dashboards)
 
-| Công cụ               | Địa chỉ truy cập             | Ghi chú                        |
-| :-------------------- | :--------------------------- | :----------------------------- |
-| **Traefik Ingress**   | `http://localhost` (Port 80) | Cổng Ingress điều hướng chính  |
-| **Traefik Dashboard** | `http://localhost:8080`      | Giám sát routers & middlewares |
-| **ArgoCD Web UI**     | `http://localhost:32081`     | Quản lý GitOps deployment      |
-
-### Lấy mật khẩu đăng nhập ban đầu của ArgoCD:
-
-- **Username:** `admin`
-- **Password:**
-  ```bash
-  kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo ""
-  ```
+| Công cụ             | Địa chỉ truy cập           | Ghi chú                       |
+| :------------------ | :------------------------- | :---------------------------- |
+| **Traefik Ingress** | `http://lynk.localhost`    | Cổng Ingress local, port 80   |
 
 ---
 

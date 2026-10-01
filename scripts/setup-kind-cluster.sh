@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ─────────────────────────────────────────────────────────────────────────────
 # setup-kind-cluster.sh
-# Bootstrap the lynk-cluster with Traefik + ArgoCD in one command.
+# Bootstrap the local lynk-cluster with Traefik.
 # Usage: bash scripts/setup-kind-cluster.sh
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ echo "════════════════════════�
 echo ""
 
 # ── 1. Create kind cluster ────────────────────────────────────────────────────
-if kind get clusters | grep -q "lynk-cluster"; then
+if kind get clusters | grep -Fxq "lynk-cluster"; then
   echo "ℹ️  Cluster 'lynk-cluster' already exists. Skipping creation."
 else
   echo "📦 Creating kind cluster 'lynk-cluster'..."
@@ -32,17 +32,20 @@ echo "✅ Cluster ready."
 # ── 2. Install Traefik Ingress Controller ────────────────────────────────────
 echo ""
 echo "🔀 Installing Traefik Ingress Controller..."
+traefik_chart_version=41.5.0
 helm repo add traefik https://traefik.github.io/charts 2>/dev/null || true
 helm repo update traefik
 
 if helm status traefik --namespace traefik > /dev/null 2>&1; then
   echo "ℹ️  Traefik already installed. Upgrading..."
   helm upgrade traefik traefik/traefik \
+    --version "$traefik_chart_version" \
     --namespace traefik \
     --values infra/k8s/traefik-values.yaml \
     --wait --timeout=120s
 else
   helm install traefik traefik/traefik \
+    --version "$traefik_chart_version" \
     --namespace traefik \
     --create-namespace \
     --values infra/k8s/traefik-values.yaml \
@@ -50,37 +53,11 @@ else
 fi
 echo "✅ Traefik installed."
 
-# ── 3. Install ArgoCD ────────────────────────────────────────────────────────
-echo ""
-echo "🔄 Installing ArgoCD..."
-helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
-helm repo update argo
-
-if helm status argocd --namespace argocd > /dev/null 2>&1; then
-  echo "ℹ️  ArgoCD already installed. Skipping."
-else
-  helm install argocd argo/argo-cd \
-    --namespace argocd \
-    --create-namespace \
-    --set server.service.type=NodePort \
-    --set server.service.nodePortHttp=32081 \
-    --wait --timeout=180s
-fi
-echo "✅ ArgoCD installed."
-
-# ── 4. Create lynk-staging namespace ──────────────────────────────────────────
-kubectl create namespace lynk-staging --dry-run=client -o yaml | kubectl apply -f -
-
-# ── 5. Print access information ──────────────────────────────────────────────
+# ── 3. Print access information ──────────────────────────────────────────────
 echo ""
 echo "════════════════════════════════════════════"
 echo "  ✅ Bootstrap Complete!"
 echo "════════════════════════════════════════════"
 echo ""
-echo "  Traefik HTTP  → http://localhost:32080"
-echo ""
-echo "  ArgoCD UI     → http://localhost:32081"
-echo "  Initial admin password:"
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" 2>/dev/null | base64 -d && echo "" || echo "  (run: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
+echo "  Local Ingress → http://lynk.localhost (port 80)"
 echo ""
