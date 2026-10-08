@@ -40,7 +40,7 @@ Ansible pins OS tooling/K3s/Helm, installs the root-owned CD entrypoint, preserv
 6. Public smoke verifies auth/opaque tokens/ownership/refresh reuse/logout/redirect and uses local kubectl for the redirect service's own DB replication check. Tokens stay in memory. Smoke creates synthetic accounts/URLs; data cleanup is a separate maintenance task.
 7. Record successful commit/revision pairs in `/opt/lynk/releases/success.jsonl`.
 
-Both workflows share concurrency; the node has a second lock. Existing deployments are never canceled automatically. SSM has a 60-minute execution ceiling; the runner polls for 61 minutes inside a 65-minute job. The node lock waits at most two minutes and each artifact download has a two-minute bound, leaving time for image pull, upgrade and rollback. A runner polling timeout does not cancel a potentially active migration: inspect SSM before retrying. No instance resize or CPU credit mode change is automatic.
+Both workflows share concurrency; the node has a second lock. Existing deployments are never canceled automatically. Deploy OIDC credentials last 70 minutes (role ceiling two hours), covering the full 65-minute job without expiring during rollback. SSM has a 60-minute execution ceiling; the runner polls for 61 minutes inside a 65-minute job. The node lock waits at most two minutes and each artifact download has a two-minute bound, leaving time for image pull, upgrade and rollback. A runner polling timeout does not cancel a potentially active migration: inspect SSM before retrying. No instance resize or CPU credit mode change is automatic.
 
 ## Failure and rollback
 

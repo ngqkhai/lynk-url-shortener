@@ -139,3 +139,9 @@ Chi tiết hướng dẫn xem tại: [Local Setup Runbook](docs/runbook/local-se
 - [Experiment 01: Caching Benchmark](docs/experiments/01-caching.md)
 - [Runbook: Local Development Setup](docs/runbook/local-setup.md)
 - [Master Engineering Plan](docs/lynk-project-plan.md)
+
+## AWS delivery
+
+AWS runs a single-node K3s deployment on EC2 with PostgreSQL on Neon. CloudFormation manages infrastructure; Ansible bootstraps the node over SSM. GitHub Actions validates PRs, publishes digest-pinned GHCR images from `main`, and deploys through OIDC/SSM/Helm with smoke checks and application rollback. Activation requires public GHCR packages and merging the delivery PR; production CD acceptance is pending that first main release.
+
+See [AWS deployment](docs/runbook/aws-deployment.md) and [CI/CD operations](docs/runbook/aws-cicd.md) for bootstrap, release, rollback and current capacity limitations.

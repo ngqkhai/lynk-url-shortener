@@ -50,6 +50,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       RoleName: lynk-github-deploy
+      MaxSessionDuration: 7200
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
