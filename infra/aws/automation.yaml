@@ -43,7 +43,7 @@ Resources:
           - action: aws:runShellScript
             name: deploy
             inputs:
-              timeoutSeconds: '2400'
+              timeoutSeconds: '3600'
               runCommand:
                 - '/opt/lynk/bin/deploy.sh "$SSM_Action" "$SSM_ReleaseId" "$SSM_Revision"'
   DeployRole:

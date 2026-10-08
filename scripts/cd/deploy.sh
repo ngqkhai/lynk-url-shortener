@@ -7,7 +7,7 @@ bucket=lynk-k3s-dev-artifactbucket-acumvnfx55sd
 state="${LYNK_RELEASE_ROOT:-/opt/lynk/releases}"
 mkdir -p "$state"
 exec 9>"$state/deploy.lock"
-flock -w "${LYNK_LOCK_WAIT_SECONDS:-1200}" 9 || { echo 'Another deployment holds the lock'; exit 1; }
+flock -w "${LYNK_LOCK_WAIT_SECONDS:-120}" 9 || { echo 'Another deployment holds the lock'; exit 1; }
 action="${1:-}"
 sha="${2:-}"
 revision="${3:-0}"
@@ -18,8 +18,8 @@ kubectl wait --for=condition=Ready node --all --timeout=60s
 [[ $(df --output=avail -k /var/lib/rancher/k3s | tail -1) -gt 1048576 ]] || { echo 'Less than 1 GiB disk free'; exit 1; }
 mkdir -p "$state/$sha"
 work="$state/$sha"
-aws s3 cp "s3://$bucket/releases/$sha/release.tar.gz" "$work/release.tar.gz" --only-show-errors
-aws s3 cp "s3://$bucket/releases/$sha/release.sha256" "$work/release.sha256" --only-show-errors
+timeout 120 aws s3 cp "s3://$bucket/releases/$sha/release.tar.gz" "$work/release.tar.gz" --only-show-errors
+timeout 120 aws s3 cp "s3://$bucket/releases/$sha/release.sha256" "$work/release.sha256" --only-show-errors
 (cd "$work" && sha256sum -c release.sha256)
 # Reject traversal, links and devices before extracting a release bundle.
 python3 - "$work" "$sha" <<'PY'

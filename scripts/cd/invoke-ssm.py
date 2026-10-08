@@ -36,7 +36,7 @@ command = json.loads(aws('ssm', 'send-command', '--instance-ids', instance,
     '--output-s3-bucket-name', bucket, '--output-s3-key-prefix', 'deploy-logs/' + sha,
     '--output', 'json'))['Command']['CommandId']
 print('SSM command:', command, flush=True)
-deadline = time.monotonic() + 2400
+deadline = time.monotonic() + 3660
 while time.monotonic() < deadline:
     try:
         result = json.loads(aws('ssm', 'get-command-invocation', '--command-id', command, '--instance-id', instance, '--output', 'json'))
