@@ -105,3 +105,7 @@ AWS Standard broker outage/recovery/outboxdrain + no-surge URLrollout acceptance
 - EC2 is back in Standard credit mode. K3s `NRestarts=1` at final check; the earlier SQLite/Kine fatal error remains a stability limitation, not a resolved production guarantee.
 - Temporary SSH key was removed from `authorized_keys` and its local copy deleted; the SSM tunnel was terminated. Local temporary provisioning keys and database credential JSON were removed. Persistent database connection settings are in gitignored `.env.aws.local` (0600); runtime secrets remain in `/opt/lynk/secrets` (root only). Future certificate rotation needs secure recovery or regeneration of the signing keys; temporary local signing keys are not retained.
 - Resource IDs and bootstrap steps above are recorded for Terraform/Ansible migration. CloudFormation currently owns AWS infrastructure; Terraform/Ansible modules have not been implemented. No commit or push was made.
+
+## First automated application delivery
+
+Main commit `b6cc75a477df508eadda3b0f57d9a9994b304a11` was deployed by GitHub Actions through OIDC/SSM after fixing the immutable OIDC subject mismatch. Helm revision 6 and the public Sprint 3A smoke passed. Container images now use GHCR digests from the release manifest; the earlier local R3/revision5 snapshot remains historical evidence. Details: `docs/runbook/aws-cicd.md`.
