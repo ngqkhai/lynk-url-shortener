@@ -27,7 +27,36 @@ export const options = {
 export function setup() {
   const suffix = String(Date.now());
   const codes = [];
+  const headers = { 'Content-Type': 'application/json' };
+  let refreshToken;
+  let accessExpiresAt = 0;
+  if (__ENV.AUTH_REQUIRED === 'true') {
+    if (!__ENV.AUTH_EMAIL || !__ENV.AUTH_PASSWORD)
+      fail('Set AUTH_EMAIL and AUTH_PASSWORD for authenticated setup');
+    const login = http.post(
+      `${baseUrl}/api/v1/auth/login`,
+      JSON.stringify({ email: __ENV.AUTH_EMAIL, password: __ENV.AUTH_PASSWORD }),
+      { headers, tags: { name: 'setup-login' } },
+    );
+    if (login.status !== 200) fail('Benchmark login failed');
+    const pair = login.json();
+    headers.Authorization = `Bearer ${pair.accessToken}`;
+    refreshToken = pair.refreshToken;
+    accessExpiresAt = Date.now() + pair.expiresIn * 1000;
+  }
   for (let index = 0; index < datasetSize; index += 1) {
+    if (refreshToken && Date.now() >= accessExpiresAt - 30000) {
+      const response = http.post(
+        `${baseUrl}/api/v1/auth/refresh`,
+        JSON.stringify({ refreshToken }),
+        { headers: { 'Content-Type': 'application/json' }, tags: { name: 'setup-refresh' } },
+      );
+      if (response.status !== 200) fail('Benchmark refresh failed');
+      const pair = response.json();
+      headers.Authorization = `Bearer ${pair.accessToken}`;
+      refreshToken = pair.refreshToken;
+      accessExpiresAt = Date.now() + pair.expiresIn * 1000;
+    }
     const shortCode = `Bench${suffix}${index}`;
     const response = http.post(
       `${baseUrl}/api/v1/urls`,
@@ -35,7 +64,7 @@ export function setup() {
         originalUrl: `https://example.com/benchmark/${index}`,
         customAlias: shortCode,
       }),
-      { headers: { 'Content-Type': 'application/json' }, tags: { name: 'setup-create' } },
+      { headers, tags: { name: 'setup-create' } },
     );
     if (response.status === 201) codes.push(shortCode);
   }

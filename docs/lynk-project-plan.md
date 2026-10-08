@@ -285,24 +285,31 @@ sequenceDiagram
 
 ---
 
-### 📡 Sprint 3: Non-Blocking Event-Driven Analytics (Week 7 - 8)
+### 📡 Sprint 3A: Auth, Ownership & URL Events
 
-> **Mục tiêu năng lực hệ thống:** Triển khai Apache Kafka (KRaft mode) để xử lý dữ liệu click bất đồng bộ, bảo vệ luồng redirect khỏi độ trễ ghi dữ liệu và sự cố của hệ thống phân tích.
+> Triển khai local trước; staging activation là bước riêng. Estimate sau khi thêm phantom token: 12 ngày làm việc.
 
-| Mã Task          | Phân loại  | Nội dung công việc                                                                                                                                   |
-| :--------------- | :--------: | :--------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[DEVOPS-301]** |  **MUST**  | Deploy **Apache Kafka trong KRaft mode (không dùng Zookeeper)** trên Kubernetes qua Bitnami Helm Chart.                                              |
-| **[BE-301]**     |  **MUST**  | `redirect-service`: Tích hợp Kafka Producer bắn event `url.clicked` bất đồng bộ (non-blocking).                                                      |
-| **[BE-302]**     |  **MUST**  | `url-service`: Tích hợp Kafka Producer bắn event `url.created` để sync dữ liệu sang `redirect-service`.                                              |
-| **[BE-303]**     |  **MUST**  | Xây dựng **`analytics-service` (Python 3.12 / FastAPI)** với Async Kafka Consumer (`aiokafka`).                                                      |
-| **[BE-304]**     |  **MUST**  | `analytics-service`: Parser User-Agent, lưu raw clicks & daily aggregates vào database `lynk_analytics` (SQLAlchemy + Alembic).                      |
-| **[BE-305]**     |  **MUST**  | API `GET /api/v1/analytics/:shortCode`: Trả về tổng clicks, time-series theo ngày, top referrers, device breakdown.                                  |
-| **[EXP-301]**    |  **MUST**  | **Thực hiện Experiment B (Async Analytics):** Đo độ trễ redirect khi có Kafka vs khi gọi DB trực tiếp; đo hành vi khi Analytics Service bị downtime. |
-| **[DOC-301]**    | **SHOULD** | Viết `ADR-005` (Event-Driven Architecture với Kafka KRaft).                                                                                          |
+| Task                | Kết quả local                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth                | TypeScript/Fastify + `lynk_auth`; Argon2id; register/login/me/refresh/logout; opaque access và refresh; rotation/reuse thu hồi family                                           |
+| Phantom token       | Traefik ForwardAuth qua mTLS; đổi opaque sang RS256 JWT nội bộ; kiểm tra owner tại service; introspect mỗi protected request                                                    |
+| Ownership           | `owner_id` nullable; URL mới có owner; owner-only metadata; URL cũ vô chủ tiếp tục redirect                                                                                     |
+| Kafka               | Image Apache `apache/kafka:4.2.2`, JVM KRaft, một node local/PVC; topics `url.created` và DLQ                                                                                   |
+| Durable publication | URL + outbox transaction; leased dispatcher, retry/backoff, at least once                                                                                                       |
+| Read model          | Consumer manual commit, idempotent upsert, Redis best effort; HTTP cold miss giữ nguyên                                                                                         |
+| Deployment          | Compose gateway profile, kind/Helm, standalone migration Jobs, 3 Docker images/CI; staging flags off                                                                            |
+| Evidence            | [Acceptance, failure tests và k6](experiments/02-sprint3a-auth-events.md), [ADR-005](adr/005-kafka-transactional-outbox.md), [ADR-006](adr/006-phantom-token-authentication.md) |
 
-- **Quality Gates:**
-  - _Decoupling:_ Khi Analytics Service hoặc Analytics DB bị tắt hoàn toàn, luồng Redirect vẫn phản hồi `302` bình thường mà không bị tăng độ trễ hay lỗi.
-  - _Reliability:_ Kafka consumer có cơ chế retry/error handling; Kafka consumer lag được theo dõi.
+Chi tiết vận hành và cách tái lập: [Sprint 3A runbook](runbook/sprint3a.md).
+
+### 📡 Sprint 3B: Non-Blocking Event-Driven Analytics
+
+- `redirect-service` phát `url.clicked` bất đồng bộ, kèm owner và trace context; broker lỗi không chặn redirect. Chấp nhận click loss theo policy đã chốt.
+- `analytics-service` Python 3.12/FastAPI sở hữu `lynk_analytics`; aiokafka consumer, dedupe eventId, raw clicks và UTC daily rollups.
+- Consume `url.created` để registry owner và zero-click analytics; API chỉ owner được xem qua phantom middleware.
+- Raw IP/User-Agent retention 30 ngày; API trả aggregates.
+- Experiment B dùng harness riêng so sánh synchronous analytics write với Kafka; production services không query DB của nhau.
+- Quality gates: analytics outage không chặn 302, consumer retry/lag có evidence thực, không ghi benchmark giả.
 
 ---
 

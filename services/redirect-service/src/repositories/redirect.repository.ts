@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Database } from '../infra/db.js';
 import { redirectUrls } from '../models/redirect.model.js';
 import { RedirectRecord } from '../schemas/redirect.schema.js';
@@ -29,6 +29,7 @@ export class RedirectRepository implements RedirectStore {
         set: {
           originalUrl: record.originalUrl,
           expiresAt: record.expiresAt,
+          ownerId: sql`coalesce(${record.ownerId ?? null}, ${redirectUrls.ownerId})`,
           syncedAt: new Date(),
         },
       });

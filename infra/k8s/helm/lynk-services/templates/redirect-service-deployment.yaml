@@ -8,6 +8,11 @@ metadata:
     app: redirect-service
     version: {{ .Chart.AppVersion | quote }}
 spec:
+  {{- if .Values.global.lowMemoryRollout }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 0, maxUnavailable: 1 }
+  {{- end }}
   replicas: {{ .Values.redirectService.replicaCount }}
   selector:
     matchLabels:
@@ -22,7 +27,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: redirect-service
-          image: "{{ .Values.redirectService.image.repository }}:{{ .Values.global.imageTag }}"
+          image: {{ include "lynk.image" (dict "image" .Values.redirectService.image "tag" .Values.global.imageTag) | quote }}
           imagePullPolicy: {{ .Values.redirectService.image.pullPolicy }}
           ports:
             - name: http
@@ -47,6 +52,7 @@ spec:
             httpGet:
               path: /health
               port: http
+            timeoutSeconds: {{ .Values.global.livenessTimeoutSeconds | default 1 }}
             initialDelaySeconds: 10
             periodSeconds: 15
             failureThreshold: 3
@@ -54,6 +60,7 @@ spec:
             httpGet:
               path: /health/ready
               port: http
+            timeoutSeconds: {{ .Values.global.readinessTimeoutSeconds | default 1 }}
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 3

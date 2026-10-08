@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-for dependency in docker kind kubectl helm openssl curl; do
+for dependency in docker kind kubectl helm openssl curl python3; do
   if ! command -v "$dependency" >/dev/null 2>&1; then
     echo "Missing required command: $dependency" >&2
     exit 1
@@ -66,6 +66,7 @@ ensure_database_secret() {
 
 ensure_database_secret url-service-db lynk_urls url-postgres data-url-postgres-0
 ensure_database_secret redirect-service-db lynk_redirects redirect-postgres data-redirect-postgres-0
+ensure_database_secret auth-service-db lynk_auth auth-postgres data-auth-postgres-0
 
 if ! kubectl -n lynk-local get secret lynk-redis-auth >/dev/null 2>&1; then
   redis_password="$(openssl rand -hex 24)"
@@ -74,15 +75,36 @@ if ! kubectl -n lynk-local get secret lynk-redis-auth >/dev/null 2>&1; then
   echo 'Created Secret lynk-redis-auth.'
 fi
 
+# JWT identity persists across redeploys. Missing keys with an existing auth PVC require recovery.
+if ! kubectl -n lynk-local get secret lynk-jwt-keys >/dev/null 2>&1; then
+  if kubectl -n lynk-local get pvc data-auth-postgres-0 >/dev/null 2>&1; then
+    echo 'Recover lynk-jwt-keys before redeploying the existing auth database.' >&2
+    exit 1
+  fi
+  key_dir="$(mktemp -d /tmp/lynk-kind-keys.XXXXXX)"
+  bash scripts/generate-local-keys.sh "$key_dir"
+  kubectl -n lynk-local create secret generic lynk-jwt-keys --from-file="$key_dir/jwt-private.pem" --from-file="$key_dir/jwt-public.pem" >/dev/null
+  kubectl -n lynk-local create secret generic lynk-gateway-ca --from-file=ca.crt="$key_dir/ca.crt" >/dev/null
+  kubectl -n lynk-local create secret generic lynk-gateway-server --from-file=ca.crt="$key_dir/ca.crt" --from-file=server.crt="$key_dir/server.crt" --from-file=server.key="$key_dir/server.key" >/dev/null
+  kubectl -n lynk-local create secret tls lynk-gateway-client --cert="$key_dir/client.crt" --key="$key_dir/client.key" >/dev/null
+  rm -rf "$key_dir"
+fi
+for secret in lynk-gateway-ca lynk-gateway-server lynk-gateway-client; do
+  kubectl -n lynk-local get secret "$secret" >/dev/null || { echo "Recover missing Secret $secret." >&2; exit 1; }
+done
 kubectl -n lynk-local apply -f infra/k8s/local/
 kubectl -n lynk-local rollout status statefulset/url-postgres --timeout=240s
 kubectl -n lynk-local rollout status statefulset/redirect-postgres --timeout=240s
 kubectl -n lynk-local rollout status deployment/lynk-redis --timeout=240s
+kubectl -n lynk-local rollout status statefulset/auth-postgres --timeout=240s
+kubectl -n lynk-local rollout status statefulset/kafka --timeout=300s
+kubectl -n lynk-local wait --for=condition=complete job/kafka-topics --timeout=180s
 
 image_tag="local-$(date -u +%Y%m%d%H%M%S)-$$"
-docker build -t "lynk-url-service:$image_tag" -f services/url-service/Dockerfile .
-docker build -t "lynk-redirect-service:$image_tag" -f services/redirect-service/Dockerfile .
-kind load docker-image "lynk-url-service:$image_tag" "lynk-redirect-service:$image_tag" --name lynk-cluster
+for service in url-service redirect-service auth-service; do
+  docker build -t "lynk-$service:$image_tag" -f "services/$service/Dockerfile" .
+  kind load docker-image "lynk-$service:$image_tag" --name lynk-cluster
+done
 
 helm upgrade --install lynk-services infra/k8s/helm/lynk-services \
   --namespace lynk-local \
@@ -93,28 +115,5 @@ helm upgrade --install lynk-services infra/k8s/helm/lynk-services \
 kubectl -n lynk-local rollout status deployment/url-service --timeout=180s
 kubectl -n lynk-local rollout status deployment/redirect-service --timeout=180s
 
-base_url='http://lynk.localhost'
-resolve='lynk.localhost:80:127.0.0.1'
-curl --fail --silent --show-error --max-time 10 --resolve "$resolve" "$base_url/health/ready" >/dev/null
-
-short_code="Local$(date -u +%s)"
-create_status="$(curl --silent --show-error --max-time 10 --resolve "$resolve" \
-  --output /dev/null --write-out '%{http_code}' \
-  --header 'content-type: application/json' \
-  --data "{\"originalUrl\":\"https://example.com\",\"customAlias\":\"$short_code\"}" \
-  "$base_url/api/v1/urls")"
-if [[ "$create_status" != 201 ]]; then
-  echo "Smoke test failed: URL creation returned HTTP $create_status." >&2
-  exit 1
-fi
-
-redirect_result="$(curl --silent --show-error --max-time 10 --resolve "$resolve" \
-  --output /dev/null --write-out '%{http_code} %{redirect_url}' \
-  "$base_url/$short_code")"
-if [[ "$redirect_result" != '302 https://example.com/' && "$redirect_result" != '302 https://example.com' ]]; then
-  echo "Smoke test failed: redirect returned $redirect_result." >&2
-  exit 1
-fi
-
-echo "Local deployment ready: $base_url/$short_code -> https://example.com"
-echo 'Data remains on the PostgreSQL PVCs while the kind cluster exists.'
+kubectl -n lynk-local rollout status deployment/auth-service --timeout=180s
+LYNK_BASE_URL=http://lynk.localhost LYNK_SMOKE_KIND=true python3 scripts/smoke-sprint3a.py

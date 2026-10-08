@@ -26,6 +26,7 @@ describe('Redirect health routes', () => {
   const source: UrlSource = { findByShortCode: vi.fn() };
   const env: Env = {
     NODE_ENV: 'test',
+    URL_EVENTS_ENABLED: false,
     PORT: 3002,
     HOST: '0.0.0.0',
     LOG_LEVEL: 'fatal',

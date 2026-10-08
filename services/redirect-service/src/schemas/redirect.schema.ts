@@ -6,12 +6,14 @@ export const redirectRecordSchema = z.object({
   shortCode: z.string(),
   originalUrl: z.string().url(),
   expiresAt: z.string().datetime({ offset: true }).nullable(),
+  ownerId: z.string().uuid().nullable().default(null),
 });
 
 export interface RedirectRecord {
   shortCode: string;
   originalUrl: string;
   expiresAt: Date | null;
+  ownerId?: string | null;
 }
 
 export function parseRedirectRecord(input: unknown): RedirectRecord {

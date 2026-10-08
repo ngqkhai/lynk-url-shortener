@@ -13,8 +13,11 @@ export default tseslint.config(
       'infra/**',
       'gitops/**',
       'benchmarks/**',
+      '.agents/**',
+      '.codex/**',
     ],
   },
+  { files: ['scripts/**/*.mjs'], languageOptions: { globals: { process: 'readonly' } } },
   {
     rules: {
       '@typescript-eslint/no-unused-vars': [

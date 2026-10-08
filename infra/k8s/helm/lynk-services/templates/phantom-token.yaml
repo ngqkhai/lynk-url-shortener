@@ -1,0 +1,33 @@
+{{- if .Values.phantomToken.enabled }}
+{{- if not .Values.authService.enabled }}{{ fail "phantomToken requires authService.enabled" }}{{- end }}
+{{- if ne .Values.urlService.env.AUTH_REQUIRED "true" }}{{ fail "phantomToken requires URL AUTH_REQUIRED=true" }}{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service-gateway
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - name: https
+      port: 3005
+      targetPort: 3005
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: phantom-token
+spec:
+  forwardAuth:
+    address: https://auth-service-gateway.{{ .Release.Namespace }}.svc:3005/internal/auth/forward
+    trustForwardHeader: false
+    authRequestHeaders:
+      - Authorization
+    authResponseHeaders:
+      - Authorization
+    forwardBody: false
+    tls:
+      caSecret: {{ .Values.phantomToken.caSecret }}
+      certSecret: {{ .Values.phantomToken.clientSecret }}
+      insecureSkipVerify: false
+{{- end }}

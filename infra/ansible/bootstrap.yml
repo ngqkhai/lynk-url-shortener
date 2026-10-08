@@ -1,0 +1,210 @@
+- name: Configure existing Lynk node without rotating secrets or upgrading Kubernetes
+  hosts: all
+  gather_facts: true
+  vars:
+    k3s_version: v1.37.1+k3s1
+    helm_version: v3.21.2
+    source_root: '{{ playbook_dir }}/../..'
+    secret_names:
+      - auth.env
+      - url.env
+      - redirect.env
+      - redis-password
+      - jwt-private.pem
+      - jwt-public.pem
+      - ca.crt
+      - server.crt
+      - server.key
+      - client.crt
+      - client.key
+  tasks:
+    - name: Install operating system dependencies
+      ansible.builtin.apt:
+        name: [curl, ca-certificates, jq, unzip, python3, python3-venv, util-linux]
+        state: present
+        update_cache: true
+        cache_valid_time: 86400
+    - name: Create protected directories
+      ansible.builtin.file:
+        path: '{{ item }}'
+        state: directory
+        mode: '0700'
+      loop:
+        [
+          /opt/lynk,
+          /opt/lynk/secrets,
+          /opt/lynk/bin,
+          /opt/lynk/releases,
+          /etc/rancher/k3s,
+          /opt/lynk/source,
+          /opt/lynk/source/scripts,
+        ]
+    - name: Supply secrets only when an explicit private source directory is provided
+      ansible.builtin.copy:
+        src: '{{ lynk_secrets_dir }}/{{ item }}'
+        dest: '/opt/lynk/secrets/{{ item }}'
+        mode: '0600'
+        force: false
+      loop: '{{ secret_names }}'
+      when: lynk_secrets_dir is defined
+      no_log: true
+    - name: Validate existing secret files in one remote call
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import pathlib, sys
+            root = pathlib.Path('/opt/lynk/secrets')
+            names = sys.argv[1:]
+            assert all((root / name).is_file() for name in names), 'Missing runtime secrets; supply an explicit private secrets directory'
+          - auth.env
+          - url.env
+          - redirect.env
+          - redis-password
+          - jwt-private.pem
+          - jwt-public.pem
+          - ca.crt
+          - server.crt
+          - server.key
+          - client.crt
+          - client.key
+      changed_when: false
+      check_mode: false
+      no_log: true
+    - name: Configure K3s
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml
+        mode: '0600'
+        content: |
+          write-kubeconfig-mode: "0600"
+          disable:
+            - traefik
+            - servicelb
+          secrets-encryption: true
+          node-label:
+            - ingress-ready=true
+      notify: Restart K3s
+    - name: Inspect installed K3s
+      ansible.builtin.command: /usr/local/bin/k3s --version
+      register: k3s_installed
+      failed_when: false
+      changed_when: false
+      check_mode: false
+    - name: Refuse implicit K3s version changes
+      ansible.builtin.assert:
+        that: k3s_installed.rc != 0 or k3s_version in k3s_installed.stdout
+    - name: Download K3s installer for fresh hosts
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /opt/lynk/install-k3s.sh
+        mode: '0700'
+      when: k3s_installed.rc != 0
+    - name: Install pinned K3s on fresh hosts
+      ansible.builtin.command: /opt/lynk/install-k3s.sh
+      environment:
+        INSTALL_K3S_VERSION: '{{ k3s_version }}'
+      when: k3s_installed.rc != 0
+    - name: Download pinned Helm
+      ansible.builtin.get_url:
+        url: 'https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz'
+        dest: /opt/lynk/helm.tar.gz
+        mode: '0600'
+      when: not ansible_check_mode
+    - name: Extract Helm
+      ansible.builtin.unarchive:
+        src: /opt/lynk/helm.tar.gz
+        dest: /opt/lynk
+        remote_src: true
+        creates: /opt/lynk/linux-amd64/helm
+      when: not ansible_check_mode
+    - name: Install Helm executable
+      ansible.builtin.copy:
+        src: /opt/lynk/linux-amd64/helm
+        dest: /usr/local/bin/helm
+        remote_src: true
+        mode: '0755'
+      when: not ansible_check_mode
+    - name: Download AWS CLI installer
+      ansible.builtin.get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.31.18.zip
+        dest: /opt/lynk/awscli.zip
+        mode: '0600'
+      when: not ansible_check_mode
+    - name: Extract AWS CLI
+      ansible.builtin.unarchive:
+        src: /opt/lynk/awscli.zip
+        dest: /opt/lynk
+        remote_src: true
+        creates: /opt/lynk/aws/install
+      when: not ansible_check_mode
+    - name: Install AWS CLI if absent
+      ansible.builtin.command: /opt/lynk/aws/install
+      args:
+        creates: /usr/local/bin/aws
+      when: not ansible_check_mode
+    - name: Install root-owned CD entrypoint
+      ansible.builtin.copy:
+        src: '{{ source_root }}/scripts/cd/deploy.sh'
+        dest: /opt/lynk/bin/deploy.sh
+        mode: '0700'
+    - name: Create temporary platform archive directory on controller
+      ansible.builtin.tempfile:
+        state: directory
+      delegate_to: localhost
+      become: false
+      register: platform_archive
+      changed_when: false
+      check_mode: false
+    - name: Package only platform source files
+      ansible.builtin.command:
+        argv:
+          - tar
+          - --sort=name
+          - --mtime=@0
+          - --owner=0
+          - --group=0
+          - -czf
+          - '{{ platform_archive.path }}/platform.tar.gz'
+          - -C
+          - '{{ source_root }}'
+          - infra/aws/traefik-values.yaml
+          - infra/aws/kafka.yaml
+          - infra/aws/redis.yaml
+          - infra/k8s/local/kafka-topics.yaml
+          - scripts/bootstrap-aws-platform.sh
+      delegate_to: localhost
+      become: false
+      check_mode: false
+      changed_when: false
+    - name: Transfer platform archive
+      ansible.builtin.copy:
+        src: '{{ platform_archive.path }}/platform.tar.gz'
+        dest: /opt/lynk/platform.tar.gz
+        mode: '0600'
+      register: platform_transfer
+    - name: Extract changed platform archive
+      ansible.builtin.unarchive:
+        src: /opt/lynk/platform.tar.gz
+        dest: /opt/lynk/source
+        remote_src: true
+      when: platform_transfer.changed and not ansible_check_mode
+    - name: Remove temporary controller archive
+      ansible.builtin.file:
+        path: '{{ platform_archive.path }}'
+        state: absent
+      delegate_to: localhost
+      become: false
+      check_mode: false
+      changed_when: false
+    - name: Apply configuration restart before platform reconciliation
+      ansible.builtin.meta: flush_handlers
+    - name: Reconcile platform
+      ansible.builtin.command: bash /opt/lynk/source/scripts/bootstrap-aws-platform.sh
+      register: platform
+      changed_when: "'configured' in platform.stdout or 'created' in platform.stdout or 'STATUS: deployed' in platform.stdout"
+  handlers:
+    - name: Restart K3s
+      ansible.builtin.service:
+        name: k3s
+        state: restarted

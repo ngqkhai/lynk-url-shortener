@@ -7,6 +7,7 @@ export const urls = pgTable('urls', {
   originalUrl: text('original_url').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
+  ownerId: uuid('owner_id'),
 });
 
 export type Url = InferSelectModel<typeof urls>;

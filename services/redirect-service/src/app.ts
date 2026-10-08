@@ -1,3 +1,5 @@
+import { createKafkaEvents, type EventConsumer } from './infra/kafka.js';
+import { UrlCreatedHandler, type DeadLetterSink } from './services/url-created.service.js';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import fastify, { FastifyInstance } from 'fastify';
@@ -17,6 +19,7 @@ export interface AppDependencies {
   repository?: RedirectStore;
   cache?: RedirectCache;
   source?: UrlSource;
+  events?: { consumer: EventConsumer; deadLetters: DeadLetterSink };
 }
 
 export function buildApp(env: Env, dependencies: AppDependencies = {}): FastifyInstance {
@@ -33,7 +36,12 @@ export function buildApp(env: Env, dependencies: AppDependencies = {}): FastifyI
           },
   });
 
-  const database = dependencies.database ?? createDatabaseClient(env.DATABASE_URL);
+  const database =
+    dependencies.database ??
+    createDatabaseClient(env.DATABASE_URL, {
+      readinessCacheSeconds: env.DB_READINESS_CACHE_SECONDS,
+      connectTimeoutSeconds: env.DB_CONNECT_TIMEOUT_SECONDS,
+    });
   const repository = dependencies.repository ?? new RedirectRepository(database.db);
   const cache =
     dependencies.cache ??
@@ -49,13 +57,23 @@ export function buildApp(env: Env, dependencies: AppDependencies = {}): FastifyI
   const service = new RedirectService(repository, cache, source, env.CACHE_TTL_SECONDS, app.log);
   const controller = new RedirectController(service);
 
+  const events = env.URL_EVENTS_ENABLED
+    ? (dependencies.events ?? createKafkaEvents(env.KAFKA_BROKERS!.split(','), app.log))
+    : undefined;
+  app.addHook('onReady', async () =>
+    events?.consumer.start(
+      new UrlCreatedHandler(repository, cache, events.deadLetters, env.CACHE_TTL_SECONDS, app.log),
+    ),
+  );
   cache.start();
   app.addHook('onClose', async () => {
+    await events?.consumer.close();
     await cache.close();
     await database.close();
   });
 
   app.setErrorHandler((error, _request, reply) => {
+    if (!(error instanceof AppError) || error.statusCode >= 500) database.invalidateReadiness?.();
     if (error instanceof AppError) {
       return reply
         .status(error.statusCode)

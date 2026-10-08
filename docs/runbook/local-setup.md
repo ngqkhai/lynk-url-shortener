@@ -63,7 +63,7 @@ Yêu cầu Docker đang chạy và tài khoản hiện tại có quyền dùng D
 make k8s-local-deploy
 ```
 
-Script tạo ba Secret trong cluster, hai PostgreSQL StatefulSet với PVC riêng và Redis 8 tạm thời. Sau đó script build hai Docker image từ working tree hiện tại, nạp image vào `kind`, chạy migration Job qua Helm `pre-install/pre-upgrade` hook và đợi hai Deployment sẵn sàng. Cuối cùng nó tạo một URL thử nghiệm và xác nhận redirect `302`.
+Script tạo/reuse database và JWT/mTLS Secrets, ba PostgreSQL StatefulSets, Redis 8 và Kafka KRaft có PVC. Script build ba service images có shared package, chạy migration Jobs trước rollout, provision topics và kiểm tra opaque login, ownership, replication trước click, refresh reuse/logout và redirect `302`. Xem [Sprint 3A runbook](sprint3a.md) cho API và failure tests.
 
 Mỗi lần chạy sẽ dùng image tag mới để Pod nhận đúng code mới. Secret và PVC được dùng lại, không tự xóa dữ liệu. Nếu Secret database mất nhưng PVC còn, script dừng để tránh tạo mật khẩu mới không khớp database cũ. PVC giữ dữ liệu qua Pod restart, nhưng xóa cả cluster `kind` sẽ làm mất dữ liệu local.
 
@@ -71,11 +71,14 @@ Mỗi PostgreSQL local chỉ có một Pod. Trong lúc Pod này khởi động l
 
 ### 4. Kiểm tra thủ công
 
+Đăng ký/đăng nhập theo [Sprint 3A runbook](sprint3a.md) và đặt `ACCESS_TOKEN` trước khi tạo URL.
+
 ```bash
 kubectl -n lynk-local get pods,svc,pvc,jobs
 curl -i --resolve lynk.localhost:80:127.0.0.1 http://lynk.localhost/health/ready
 curl -i --resolve lynk.localhost:80:127.0.0.1 \
   -H 'content-type: application/json' \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d '{"originalUrl":"https://example.com","customAlias":"DemoLink"}' \
   http://lynk.localhost/api/v1/urls
 curl -i --resolve lynk.localhost:80:127.0.0.1 http://lynk.localhost/DemoLink
@@ -106,9 +109,9 @@ Xác nhận error rate bằng 0 trước khi ghi kết quả vào báo cáo expe
 
 ## 🎛️ Truy cập các bảng điều khiển (Dashboards)
 
-| Công cụ             | Địa chỉ truy cập           | Ghi chú                       |
-| :------------------ | :------------------------- | :---------------------------- |
-| **Traefik Ingress** | `http://lynk.localhost`    | Cổng Ingress local, port 80   |
+| Công cụ             | Địa chỉ truy cập        | Ghi chú                     |
+| :------------------ | :---------------------- | :-------------------------- |
+| **Traefik Ingress** | `http://lynk.localhost` | Cổng Ingress local, port 80 |
 
 ---
 

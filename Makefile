@@ -31,10 +31,12 @@ db-down:
 	docker compose -f infra/docker/docker-compose.yml down
 
 db-migrate:
+	npm run build --workspace=@lynk/shared
 	npm run build --workspace=@lynk/url-service
 	DATABASE_URL=$${DATABASE_URL:-postgres://lynk:lynk_local_only@localhost:5432/lynk_urls} PUBLIC_BASE_URL=$${PUBLIC_BASE_URL:-http://localhost} npm run db:migrate --workspace=@lynk/url-service
 
 db-migrate-redirect:
+	npm run build --workspace=@lynk/shared
 	npm run build --workspace=@lynk/redirect-service
 	DATABASE_URL=$${REDIRECT_DATABASE_URL:-postgres://lynk:lynk_local_only@localhost:5433/lynk_redirects} REDIS_URL=$${REDIS_URL:-redis://localhost:6379} REDIS_PASSWORD=$${REDIS_PASSWORD:-lynk_local_only} URL_SERVICE_BASE_URL=$${URL_SERVICE_BASE_URL:-http://localhost:3001} npm run db:migrate --workspace=@lynk/redirect-service
 
@@ -46,3 +48,10 @@ k8s-local-deploy:
 
 k8s-down:
 	kind delete cluster --name lynk-cluster
+
+.PHONY: docker-build-auth test-sprint3a
+docker-build-auth:
+	docker build -t lynk-auth-service:latest -f services/auth-service/Dockerfile .
+
+test-sprint3a:
+	bash scripts/test-sprint3a.sh

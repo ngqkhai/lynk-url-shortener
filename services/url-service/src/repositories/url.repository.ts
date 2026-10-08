@@ -2,8 +2,12 @@ import { eq } from 'drizzle-orm';
 import { Database } from '../infra/db.js';
 import { NewUrl, Url, urls } from '../models/url.model.js';
 
-export class UrlRepository {
-  constructor(private readonly db: Database) {}
+export interface UrlStore {
+  create(url: NewUrl): Promise<Url>;
+  findByShortCode(shortCode: string): Promise<Url | undefined>;
+}
+export class UrlRepository implements UrlStore {
+  constructor(private readonly db: Pick<Database, 'insert' | 'select'>) {}
 
   async create(url: NewUrl): Promise<Url> {
     const [created] = await this.db.insert(urls).values(url).returning();

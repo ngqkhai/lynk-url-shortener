@@ -1,0 +1,43 @@
+deployment:
+  kind: Deployment
+  replicas: 1
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate: { maxUnavailable: 1, maxSurge: 0 }
+service:
+  spec: { type: ClusterIP }
+ports:
+  web:
+    port: 8000
+    hostPort: 80
+    expose: { default: true }
+    exposedPort: 80
+  websecure:
+    port: 8443
+    hostPort: 443
+    expose: { default: true }
+    exposedPort: 443
+nodeSelector: { ingress-ready: 'true' }
+ingressRoute:
+  dashboard: { enabled: false }
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { cpu: 300m, memory: 128Mi }
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: local-path
+additionalArguments:
+  - --entrypoints.web.http.redirections.entrypoint.to=:443
+  - --entrypoints.web.http.redirections.entrypoint.scheme=https
+  - --entrypoints.web.http.redirections.entrypoint.permanent=true
+  - --certificatesresolvers.letsencrypt.acme.email=admin@lynk.codes
+  - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
+  - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+
+readinessProbe:
+  timeoutSeconds: 10
+  failureThreshold: 3
+livenessProbe:
+  timeoutSeconds: 10
+  failureThreshold: 6

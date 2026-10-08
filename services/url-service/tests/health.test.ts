@@ -9,6 +9,8 @@ describe('Health and Readiness Routes', () => {
 
   const testEnv: Env = {
     NODE_ENV: 'test',
+    AUTH_REQUIRED: false,
+    URL_EVENTS_ENABLED: false,
     PORT: 3001,
     HOST: '0.0.0.0',
     LOG_LEVEL: 'fatal',

@@ -1,0 +1,9 @@
+{
+  "before": 10,
+  "after": 1546,
+  "delta": 1536,
+  "gatewayMetadataRequests": 1534,
+  "setupIntrospections": 2,
+  "expected": 1536,
+  "matches": true
+}

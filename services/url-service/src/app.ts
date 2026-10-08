@@ -9,9 +9,17 @@ import { UrlService } from './services/url.service.js';
 import { UrlController } from './controllers/url.controller.js';
 import { urlRoutes } from './routes/url.routes.js';
 import { AppError } from './errors/app-error.js';
+import { readFileSync } from 'node:fs';
+import { createPrincipalVerifier, type PrincipalVerifier } from '@lynk/shared/auth';
+import { createUrlUnitOfWork } from './infra/unit-of-work.js';
+import { createEventPublisher, type EventPublisher } from './infra/kafka.js';
+import { OutboxRepository } from './repositories/outbox.repository.js';
+import { OutboxDispatcher } from './services/outbox-dispatcher.service.js';
 
 export interface AppDependencies {
   database?: DatabaseClient;
+  verify?: PrincipalVerifier;
+  publisher?: EventPublisher;
 }
 
 export function buildApp(env: Env, dependencies: AppDependencies = {}): FastifyInstance {
@@ -21,6 +29,7 @@ export function buildApp(env: Env, dependencies: AppDependencies = {}): FastifyI
         ? false
         : {
             level: env.LOG_LEVEL,
+            redact: ['req.headers.authorization'],
             transport:
               env.NODE_ENV === 'development'
                 ? {
@@ -31,13 +40,38 @@ export function buildApp(env: Env, dependencies: AppDependencies = {}): FastifyI
           },
   });
 
-  const database = dependencies.database ?? createDatabaseClient(env.DATABASE_URL);
+  const database =
+    dependencies.database ??
+    createDatabaseClient(env.DATABASE_URL, {
+      readinessCacheSeconds: env.DB_READINESS_CACHE_SECONDS,
+      connectTimeoutSeconds: env.DB_CONNECT_TIMEOUT_SECONDS,
+    });
   const repository = new UrlRepository(database.db);
-  const service = new UrlService(repository);
-  const controller = new UrlController(service, env.PUBLIC_BASE_URL);
+  const service = new UrlService(repository, {
+    unit: env.URL_EVENTS_ENABLED ? createUrlUnitOfWork(database.db) : undefined,
+    onCreated: () => worker?.notify(),
+  });
+  const verify = env.AUTH_REQUIRED
+    ? (dependencies.verify ??
+      createPrincipalVerifier(readFileSync(env.JWT_PUBLIC_KEY_PATH!, 'utf8')))
+    : undefined;
+  const controller = new UrlController(service, env.PUBLIC_BASE_URL, verify);
+  const worker = env.URL_EVENTS_ENABLED
+    ? new OutboxDispatcher(
+        new OutboxRepository(database.db),
+        dependencies.publisher ?? createEventPublisher(env.KAFKA_BROKERS!.split(',')),
+        app.log,
+        env.OUTBOX_IDLE_POLL_MS,
+      )
+    : undefined;
 
-  app.addHook('onClose', async () => database.close());
+  app.addHook('onReady', async () => worker?.start());
+  app.addHook('onClose', async () => {
+    await worker?.close();
+    await database.close();
+  });
   app.setErrorHandler((error, _request, reply) => {
+    if (!(error instanceof AppError) || error.statusCode >= 500) database.invalidateReadiness?.();
     if (error instanceof AppError) {
       return reply
         .status(error.statusCode)
@@ -64,7 +98,18 @@ export function buildApp(env: Env, dependencies: AppDependencies = {}): FastifyI
   });
 
   app.register(swagger, {
-    openapi: { info: { title: 'Lynk URL Service API', version: '1.0.0' } },
+    openapi: {
+      info: { title: 'Lynk URL Service API', version: '1.0.0' },
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            description: 'Opaque token through Traefik',
+          },
+        },
+      },
+    },
   });
   app.register(swaggerUi, { routePrefix: '/documentation' });
 

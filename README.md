@@ -10,6 +10,14 @@
 
 ---
 
+## Trạng thái triển khai
+
+Sprint 3A local có `auth-service`, phantom token qua Traefik mTLS, URL ownership và Kafka `url.created` với transactional outbox. Analytics, `url.clicked` và observability trong sơ đồ dưới thuộc các sprint tiếp theo. Staging vẫn tắt auth/phantom/events.
+
+- [Runbook Sprint 3A](docs/runbook/sprint3a.md)
+- [Acceptance và k6 evidence](docs/experiments/02-sprint3a-auth-events.md)
+- Chạy stack và failure tests: `make test-sprint3a`.
+
 ## 🏛️ Kiến trúc hệ thống tổng thể (System Architecture)
 
 ```mermaid
@@ -21,6 +29,7 @@ graph TB
     end
 
     subgraph "Microservices Layer"
+        AUTH_SVC["Auth Service<br/>TypeScript / Fastify<br/>3004 public, 3005 mTLS"]
         URL_SVC["URL Service<br/>(TypeScript / Fastify)<br/>Port 3001"]
         RED_SVC["Redirect Service<br/>(TypeScript / Fastify)<br/>Port 3002"]
         ANA_SVC["Analytics Service<br/>(Python / FastAPI)<br/>Port 3003"]
@@ -45,7 +54,9 @@ graph TB
     end
 
     Client -->|HTTP Request| GW
-    GW -->|POST /api/v1/urls| URL_SVC
+    GW -->|ForwardAuth mTLS, opaque to JWT| AUTH_SVC
+    AUTH_SVC --> PG_AUTH[("PostgreSQL: lynk_auth")]
+    GW -->|POST /api/v1/urls, internal JWT| URL_SVC
     GW -->|GET /:shortCode| RED_SVC
     GW -->|GET /api/v1/analytics/*| ANA_SVC
 
@@ -109,7 +120,8 @@ Chi tiết hướng dẫn xem tại: [Local Setup Runbook](docs/runbook/local-se
 - [x] **Sprint 0: Foundation & Walking Skeleton** — Monorepo, Fastify Skeleton, K8s (`kind`), Traefik, ArgoCD, Day-1 CI/CD.
 - [x] **Sprint 1: Core URL Shortening Capability** — NanoID base62, PostgreSQL, Drizzle ORM, 302 redirect, TTL handling.
 - [ ] **Sprint 2: High-Performance Redirect Path** — Redis cache-aside, tách `redirect-service`, k6 caching benchmark; chờ số liệu staging.
-- [ ] **Sprint 3: Non-Blocking Event-Driven Analytics** — Kafka KRaft, `analytics-service` (Python), async click tracking.
+- [x] **Sprint 3A (local): Auth & URL Events** — Phantom token/mTLS, ownership, Kafka KRaft, transactional outbox, `url.created`.
+- [ ] **Sprint 3B: Non-Blocking Analytics** — `url.clicked`, `analytics-service` (Python), owner analytics, Experiment B.
 - [ ] **Sprint 4: End-to-End Observability** — Prometheus RED metrics, Grafana dashboards, OpenTelemetry + Jaeger tracing.
 - [ ] **Sprint 5: Production Hardening & Portfolio** — Rate limiting, Trivy security scan, backup scripts, hoàn thiện 8 ADRs.
 
@@ -122,6 +134,8 @@ Chi tiết hướng dẫn xem tại: [Local Setup Runbook](docs/runbook/local-se
 - [ADR-002: 302 Redirect Status Code](docs/adr/002-redirect-status-code.md)
 - [ADR-003: Redis Cache-Aside](docs/adr/003-redis-cache-aside.md)
 - [ADR-004: Redirect Service Decomposition](docs/adr/004-redirect-service-decomposition.md)
+- [ADR-005: Kafka & Transactional Outbox](docs/adr/005-kafka-transactional-outbox.md)
+- [ADR-006: Phantom Token Authentication](docs/adr/006-phantom-token-authentication.md)
 - [Experiment 01: Caching Benchmark](docs/experiments/01-caching.md)
 - [Runbook: Local Development Setup](docs/runbook/local-setup.md)
 - [Master Engineering Plan](docs/lynk-project-plan.md)

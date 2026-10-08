@@ -5,6 +5,7 @@ import { RedirectStore } from '../repositories/redirect.repository.js';
 import { RedirectRecord } from '../schemas/redirect.schema.js';
 
 export interface ServiceLogger {
+  info?(object: unknown, message?: string): void;
   warn(object: unknown, message?: string): void;
 }
 

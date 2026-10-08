@@ -1,0 +1,132 @@
+# Isolated end-to-end stack. Run through scripts/test-sprint3a.sh.
+services:
+  url-postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: lynk_urls, POSTGRES_USER: lynk, POSTGRES_PASSWORD: local-test-only }
+    healthcheck: &pghealth
+      test: [CMD-SHELL, 'pg_isready -U lynk']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  redirect-postgres:
+    image: postgres:16-alpine
+    environment:
+      { POSTGRES_DB: lynk_redirects, POSTGRES_USER: lynk, POSTGRES_PASSWORD: local-test-only }
+    healthcheck: *pghealth
+  auth-postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: lynk_auth, POSTGRES_USER: lynk, POSTGRES_PASSWORD: local-test-only }
+    healthcheck: *pghealth
+  redis:
+    image: redis:8-alpine
+    command: [redis-server, --requirepass, local-test-only]
+  kafka:
+    image: apache/kafka:4.2.2
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: '1'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_LOG_DIRS: /var/lib/kafka/data/logs
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
+    volumes: [kafka-data:/var/lib/kafka/data]
+    healthcheck:
+      test: [CMD, /opt/kafka/bin/kafka-topics.sh, --bootstrap-server, localhost:9092, --list]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    mem_limit: 1536m
+  kafka-topics:
+    image: apache/kafka:4.2.2
+    depends_on: { kafka: { condition: service_healthy } }
+    entrypoint: [/bin/bash, -ec]
+    command:
+      - 'for topic in url.created url.created.dlq; do /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$topic" --partitions 3 --replication-factor 1 --config retention.ms=604800000; done'
+  url-migrate:
+    image: lynk-url-service:sprint3a
+    depends_on: { url-postgres: { condition: service_healthy } }
+    command: [node, dist/infra/migrate.js]
+    environment: { DATABASE_URL: 'postgres://lynk:local-test-only@url-postgres:5432/lynk_urls' }
+  redirect-migrate:
+    image: lynk-redirect-service:sprint3a
+    depends_on: { redirect-postgres: { condition: service_healthy } }
+    command: [node, dist/infra/migrate.js]
+    environment:
+      { DATABASE_URL: 'postgres://lynk:local-test-only@redirect-postgres:5432/lynk_redirects' }
+  auth-migrate:
+    image: lynk-auth-service:sprint3a
+    depends_on: { auth-postgres: { condition: service_healthy } }
+    command: [node, dist/infra/migrate.js]
+    environment: { DATABASE_URL: 'postgres://lynk:local-test-only@auth-postgres:5432/lynk_auth' }
+  url-service:
+    image: lynk-url-service:sprint3a
+    depends_on:
+      url-migrate: { condition: service_completed_successfully }
+      kafka-topics: { condition: service_completed_successfully }
+    environment:
+      DATABASE_URL: postgres://lynk:local-test-only@url-postgres:5432/lynk_urls
+      PUBLIC_BASE_URL: http://localhost:8088
+      AUTH_REQUIRED: 'true'
+      JWT_PUBLIC_KEY_PATH: /keys/jwt-public.pem
+      URL_EVENTS_ENABLED: 'true'
+      KAFKA_BROKERS: kafka:9092
+    volumes: ['${LYNK_KEY_DIR:?Generate local keys}/jwt-public.pem:/keys/jwt-public.pem:ro']
+  redirect-service:
+    image: lynk-redirect-service:sprint3a
+    depends_on:
+      redirect-migrate: { condition: service_completed_successfully }
+      kafka-topics: { condition: service_completed_successfully }
+    environment:
+      DATABASE_URL: postgres://lynk:local-test-only@redirect-postgres:5432/lynk_redirects
+      REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: local-test-only
+      URL_SERVICE_BASE_URL: http://url-service:3001
+      URL_EVENTS_ENABLED: 'true'
+      KAFKA_BROKERS: kafka:9092
+  auth-service:
+    image: lynk-auth-service:sprint3a
+    networks:
+      default:
+        aliases: [auth-service-gateway]
+    depends_on: { auth-migrate: { condition: service_completed_successfully } }
+    environment:
+      DATABASE_URL: postgres://lynk:local-test-only@auth-postgres:5432/lynk_auth
+      JWT_PRIVATE_KEY_PATH: /keys/jwt-private.pem
+      JWT_PUBLIC_KEY_PATH: /keys/jwt-public.pem
+      JWT_KEY_ID: local-v1
+      PHANTOM_ENABLED: 'true'
+      GATEWAY_CA_PATH: /tls/ca.crt
+      GATEWAY_CERT_PATH: /tls/server.crt
+      GATEWAY_KEY_PATH: /tls/server.key
+    volumes:
+      - '${LYNK_KEY_DIR}/jwt-private.pem:/keys/jwt-private.pem:ro'
+      - '${LYNK_KEY_DIR}/jwt-public.pem:/keys/jwt-public.pem:ro'
+      - '${LYNK_KEY_DIR}/ca.crt:/tls/ca.crt:ro'
+      - '${LYNK_KEY_DIR}/server.crt:/tls/server.crt:ro'
+      - '${LYNK_KEY_DIR}/server.key:/tls/server.key:ro'
+  traefik:
+    profiles: [gateway]
+    image: traefik:v3.5.0
+    command:
+      - --entrypoints.web.address=:8080
+      - --providers.file.filename=/etc/traefik/dynamic.yaml
+      - --accesslog=true
+      - --accesslog.fields.headers.defaultmode=drop
+    ports: ['127.0.0.1:${LYNK_GATEWAY_PORT:-8088}:8080']
+    depends_on: [url-service, redirect-service, auth-service]
+    volumes:
+      - './traefik.3a.yaml:/etc/traefik/dynamic.yaml:ro'
+      - '${LYNK_KEY_DIR}/ca.crt:/tls/ca.crt:ro'
+      - '${LYNK_KEY_DIR}/client.crt:/tls/client.crt:ro'
+      - '${LYNK_KEY_DIR}/client.key:/tls/client.key:ro'
+volumes:
+  kafka-data:

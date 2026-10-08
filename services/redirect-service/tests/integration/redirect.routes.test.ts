@@ -61,6 +61,7 @@ describe.skipIf(!runIntegration)('Redirect API integration', () => {
 
     const env: Env = {
       NODE_ENV: 'test',
+      URL_EVENTS_ENABLED: false,
       PORT: 3002,
       HOST: '0.0.0.0',
       LOG_LEVEL: 'fatal',
@@ -104,6 +105,22 @@ describe.skipIf(!runIntegration)('Redirect API integration', () => {
     const response = await app.inject({ method: 'GET', url: '/DbOnly1' });
     expect(response.statusCode).toBe(302);
     expect(response.headers.location).toBe('https://example.com/db');
+  });
+
+  it('does not erase event ownership when an old HTTP payload arrives', async () => {
+    const ownerId = 'bb47e1a7-de20-4147-bc3a-af80beedc4e1';
+    await repository.upsert({
+      shortCode: 'OwnerRace',
+      originalUrl: 'https://example.com',
+      expiresAt: null,
+      ownerId,
+    });
+    await repository.upsert({
+      shortCode: 'OwnerRace',
+      originalUrl: 'https://example.com',
+      expiresAt: null,
+    });
+    expect((await repository.findByShortCode('OwnerRace'))?.ownerId).toBe(ownerId);
   });
 
   it('returns 404 and 410 for missing and expired codes', async () => {

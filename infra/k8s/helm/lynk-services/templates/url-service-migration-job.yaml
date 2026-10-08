@@ -26,7 +26,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: migrate
-          image: "{{ .Values.urlService.image.repository }}:{{ .Values.global.imageTag }}"
+          image: {{ include "lynk.image" (dict "image" .Values.urlService.image "tag" .Values.global.imageTag) | quote }}
           imagePullPolicy: {{ .Values.urlService.image.pullPolicy }}
           command: ["node", "dist/infra/migrate.js"]
           env:

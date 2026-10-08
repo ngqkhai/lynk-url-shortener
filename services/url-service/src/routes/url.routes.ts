@@ -20,6 +20,7 @@ export async function urlRoutes(app: FastifyInstance, controller: UrlController)
     {
       schema: {
         tags: ['URLs'],
+        security: [{ bearerAuth: [] }],
         body: {
           type: 'object',
           required: ['originalUrl'],
@@ -37,7 +38,11 @@ export async function urlRoutes(app: FastifyInstance, controller: UrlController)
   app.get(
     '/api/v1/urls/:shortCode',
     {
-      schema: { tags: ['URLs'], response: { 200: urlResponseSchema } },
+      schema: {
+        tags: ['URLs'],
+        security: [{ bearerAuth: [] }],
+        response: { 200: urlResponseSchema },
+      },
     },
     controller.getMetadata.bind(controller),
   );
@@ -54,6 +59,7 @@ export async function urlRoutes(app: FastifyInstance, controller: UrlController)
               shortCode: { type: 'string' },
               originalUrl: { type: 'string', format: 'uri' },
               expiresAt: { type: ['string', 'null'], format: 'date-time' },
+              ownerId: { type: ['string', 'null'], format: 'uuid' },
             },
           },
         },
