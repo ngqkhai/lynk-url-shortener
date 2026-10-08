@@ -111,7 +111,7 @@ Resources:
                 Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
                 Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/${InstanceId}/*'
               - Effect: Allow
-                Action: [s3:GetBucketLocation]
+                Action: [s3:GetBucketLocation, s3:ListBucket]
                 Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}'
   NodeArtifactPolicy:
     Type: AWS::IAM::Policy
