@@ -69,3 +69,9 @@ Failure scenarios cover image pull, migration, smoke/rollback, traversal rejecti
 - Production CD/OIDC acceptance remains pending main merge and public GHCR visibility. The PR is not automatically merged.
 
 Transport acceptance on the live node: a deliberately incomplete release was downloaded and checksum-verified through `LynkDeploy`, then rejected before Helm; stdout/stderr reached private S3 (two output files). The test release was removed and the application remained on its existing Helm revision. This verifies the installed entrypoint and node/SSM/S3 path using SSO; GitHub OIDC still requires the first main workflow. The Ansible collection calls S3 HeadBucket, so the bootstrap role additionally permits bucket listing/location lookup; object access stays limited to the instance transport prefix.
+
+## OIDC subject mismatch recovery
+
+Repository OIDC configuration returns `use_immutable_subject: true` and `sub_claim_prefix: repo:ngqkhai@92835482/lynk-url-shortener@1365808803`. Both role trust policies must append their environment to this exact prefix. The `GitHubSubjectPrefix` CloudFormation parameter keeps this explicit; inspect `gh api repos/ngqkhai/lynk-url-shortener/actions/oidc/customization/sub` when bootstrapping another repository. Do not infer subject format from repository name alone or widen the trust policy to a wildcard.
+
+First main run `37839590947` passed CI, image publication and anonymous pulls but failed STS before any SSM deployment, because the original policies used the legacy subject. Update stack `lynk-cicd` with the immutable prefix, then rerun failed jobs (reuse the existing release artifact; do not rebuild the successful images merely to retry OIDC).

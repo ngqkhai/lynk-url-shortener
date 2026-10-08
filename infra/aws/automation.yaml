@@ -4,6 +4,11 @@ Parameters:
   InstanceId: { Type: String }
   InstanceRoleName: { Type: String }
   ArtifactBucket: { Type: String }
+  GitHubSubjectPrefix:
+    Type: String
+    Default: repo:ngqkhai@92835482/lynk-url-shortener@1365808803
+    AllowedPattern: '^repo:[A-Za-z0-9_-]+@[0-9]+/[A-Za-z0-9_.-]+@[0-9]+$'
+    Description: Immutable subject prefix returned by the repository OIDC customization API
   OidcProviderArn:
     Type: String
     Default: ''
@@ -61,7 +66,7 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: repo:ngqkhai/lynk-url-shortener:environment:aws-demo
+                token.actions.githubusercontent.com:sub: !Sub '${GitHubSubjectPrefix}:environment:aws-demo'
       Policies:
         - PolicyName: release-deploy
           PolicyDocument:
@@ -92,7 +97,7 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: repo:ngqkhai/lynk-url-shortener:environment:aws-bootstrap
+                token.actions.githubusercontent.com:sub: !Sub '${GitHubSubjectPrefix}:environment:aws-bootstrap'
       Policies:
         - PolicyName: bootstrap-ssm
           PolicyDocument:
