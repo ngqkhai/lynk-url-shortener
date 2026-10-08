@@ -209,8 +209,8 @@
       ansible.builtin.command: bash /opt/lynk/source/scripts/bootstrap-aws-platform.sh
       register: platform
       changed_when: "'configured' in platform.stdout or 'created' in platform.stdout or 'STATUS: deployed' in platform.stdout"
-  handlers:
       tags: [platform]
+  handlers:
     - name: Restart K3s
       ansible.builtin.service:
         name: k3s
