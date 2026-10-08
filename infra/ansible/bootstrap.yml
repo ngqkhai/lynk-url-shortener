@@ -148,6 +148,7 @@
         src: '{{ source_root }}/scripts/cd/deploy.sh'
         dest: /opt/lynk/bin/deploy.sh
         mode: '0700'
+      tags: [cd-runtime]
     - name: Create temporary platform archive directory on controller
       ansible.builtin.tempfile:
         state: directory
@@ -156,6 +157,7 @@
       register: platform_archive
       changed_when: false
       check_mode: false
+      tags: [platform]
     - name: Package only platform source files
       ansible.builtin.command:
         argv:
@@ -177,18 +179,21 @@
       become: false
       check_mode: false
       changed_when: false
+      tags: [platform]
     - name: Transfer platform archive
       ansible.builtin.copy:
         src: '{{ platform_archive.path }}/platform.tar.gz'
         dest: /opt/lynk/platform.tar.gz
         mode: '0600'
       register: platform_transfer
+      tags: [platform]
     - name: Extract changed platform archive
       ansible.builtin.unarchive:
         src: /opt/lynk/platform.tar.gz
         dest: /opt/lynk/source
         remote_src: true
       when: platform_transfer.changed and not ansible_check_mode
+      tags: [platform]
     - name: Remove temporary controller archive
       ansible.builtin.file:
         path: '{{ platform_archive.path }}'
@@ -197,6 +202,7 @@
       become: false
       check_mode: false
       changed_when: false
+      tags: [platform]
     - name: Apply configuration restart before platform reconciliation
       ansible.builtin.meta: flush_handlers
     - name: Reconcile platform
@@ -204,6 +210,7 @@
       register: platform
       changed_when: "'configured' in platform.stdout or 'created' in platform.stdout or 'STATUS: deployed' in platform.stdout"
   handlers:
+      tags: [platform]
     - name: Restart K3s
       ansible.builtin.service:
         name: k3s

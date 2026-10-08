@@ -19,7 +19,13 @@ if [[ "$desired" != "$current" ]] || ! helm status traefik -n traefik >/dev/null
   helm upgrade --install traefik traefik/traefik --version 41.5.0 -n traefik --create-namespace -f infra/aws/traefik-values.yaml --wait --timeout 5m
   printf '%s' "$desired" > /opt/lynk/traefik-values.sha256
 fi
-kubectl -n lynk-aws apply -f infra/aws/redis.yaml -f infra/aws/kafka.yaml
+if kubectl -n lynk-aws diff -f infra/aws/redis.yaml -f infra/aws/kafka.yaml >/dev/null; then
+  echo 'Platform manifests unchanged'
+else
+  diff_status=$?
+  [[ "$diff_status" == 1 ]] || exit "$diff_status"
+  kubectl -n lynk-aws apply -f infra/aws/redis.yaml -f infra/aws/kafka.yaml
+fi
 kubectl -n lynk-aws rollout status statefulset/kafka --timeout=300s
 if ! kubectl -n lynk-aws get job kafka-topics >/dev/null 2>&1; then
   kubectl -n lynk-aws apply -f infra/k8s/local/kafka-topics.yaml

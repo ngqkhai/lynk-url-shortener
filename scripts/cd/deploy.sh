@@ -39,7 +39,8 @@ for service in ['url', 'redirect', 'auth']:
     assert re.fullmatch(r'sha256:[0-9a-f]{64}', image['digest'])
 PY
 cd "$work/bundle"
-previous=$(helm history lynk-services -n lynk-aws -o json | python3 -c 'import json,sys; r=[x for x in json.load(sys.stdin) if x["status"]=="deployed"]; print(r[-1]["revision"] if r else 0)')
+history=$(helm history lynk-services -n lynk-aws -o json 2>/dev/null) || history="[]"
+previous=$(printf '%s' "$history" | python3 -c 'import json,sys; r=[x for x in json.load(sys.stdin) if x["status"]=="deployed"]; print(r[-1]["revision"] if r else 0)')
 smoke() {
   timeout 240 env LYNK_BASE_URL=https://lynk.codes LYNK_SMOKE_AWS=true LYNK_SMOKE_SSM=true LYNK_FAILURE_TESTS=false python3 smoke.py
 }

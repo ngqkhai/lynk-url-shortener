@@ -9,6 +9,8 @@ GitHub environments restrict deployment to `main`:
 - `aws-demo`: `AWS_DEPLOY_ROLE_ARN`, `AWS_ARTIFACT_BUCKET`, `AWS_INSTANCE_ID` variables; no AWS access keys.
 - `aws-bootstrap`: `AWS_BOOTSTRAP_ROLE_ARN`, manual reviewer `ngqkhai`; SSM session access permits root configuration and must remain separate from ordinary CD.
 
+The pre-deploy CI gate explicitly checks anonymous image access. On initial inspection, URL latest returned 200; redirect/auth anonymous access returned 403 (private or not yet published).
+
 Images must be **public** at `ghcr.io/ngqkhai/lynk-{url,redirect,auth}-service`. New GHCR packages default to private: set visibility to public in each package's settings before the first successful CD. Verify anonymous pull. `GITHUB_TOKEN` publishes inside Actions; no registry credential is stored on the node.
 
 ## Bootstrap
@@ -58,3 +60,10 @@ ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --sy
 ```
 
 Failure scenarios cover image pull, migration, smoke/rollback, traversal rejection and successful release recording using simulated transports. Live CI/OIDC/image publication acceptance requires the PR to be merged into main. Do not merge automatically merely to exercise CD.
+
+## Execution evidence
+
+- Initial Ansible apply succeeded on the existing instance; secrets and workload images were preserved. Repeat confirmed unchanged K3s configuration, tooling, runtime entrypoint and archive. Kafka's client-side apply reported configured despite a zero diff; reconciliation now checks diff before applying.
+- Public application Pods remained Ready after bootstrap. Local validation: 42 app tests and seven deployment failure tests passed, as did lint/build/format, actionlint, cfn-lint, Helm lint and Ansible syntax.
+- PR #1 includes the explicitly authorized previous Sprint 3A/AWS changes. Main's old GitOps image-tag commit conflicted; it was merged and the obsolete per-service tag removed. PR CI passed all three test groups before the final reconciliation adjustment.
+- Production CD/OIDC acceptance remains pending main merge and public GHCR visibility. The PR is not automatically merged.
