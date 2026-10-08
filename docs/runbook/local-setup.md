@@ -11,7 +11,7 @@ Hướng dẫn thiết lập môi trường phát triển cục bộ từ đầu
 - **Docker:** `>= 24.x` & Docker Compose
 - **kubectl:** `>= 1.28.x`
 - **Helm:** `>= 3.12.x`
-- **kind:** `>= 0.20.x` (tự động cài đặt qua script nếu chưa có)
+- **kind:** `>= 0.20.x` (cài đặt trước khi chạy script)
 
 ---
 
@@ -23,73 +23,95 @@ Hướng dẫn thiết lập môi trường phát triển cục bộ từ đầu
 # Cài đặt toàn bộ npm workspaces
 make setup
 
-# Chạy kiểm tra linter & typecheck
+# Chạy kiểm tra linter, typecheck và unit tests
 make lint
 
-# Chạy toàn bộ Unit & Integration tests
+# Chạy unit tests; CI tự bật PostgreSQL Testcontainers cho integration tests
 make test
 ```
 
-### 2. Khởi chạy Local Kubernetes Cluster (`kind`)
-
-Lệnh này sẽ tự động:
-
-1. Dựng cluster `lynk-cluster` với port mapping (80, 443, 8080).
-2. Cài đặt **Traefik Ingress Controller** (NodePort 32080 / 32443).
-3. Cài đặt **ArgoCD** (NodePort 32081).
-4. Tạo namespace `lynk-staging`.
+### 2. PostgreSQL và Redis local
 
 ```bash
-make k8s-up
+make db-up
+make db-migrate
+make db-migrate-redirect
 ```
 
-### 3. Build & Nạp Docker Image vào Cluster cục bộ
+Sao chép `.env.example` thành `.env` (không commit file này), sau đó chạy service:
 
 ```bash
-# Build image url-service
-make docker-build-url
-
-# Nạp image vào kind cluster
-kind load docker-image lynk-url-service:latest --name lynk-cluster
+set -a; source .env; set +a
+npm run dev --workspace=@lynk/url-service
 ```
 
-### 4. Triển khai ứng dụng qua Helm
+Mở terminal thứ hai để chạy Redirect Service với database riêng:
 
 ```bash
-helm upgrade --install lynk-services ./infra/k8s/helm/lynk-services \
-  --namespace lynk-staging \
-  --set urlService.image.repository=lynk-url-service \
-  --set urlService.image.tag=latest \
-  --set urlService.image.pullPolicy=Never
+set -a; source .env; set +a
+PORT="$REDIRECT_PORT" DATABASE_URL="$REDIRECT_DATABASE_URL" \
+  npm run dev --workspace=@lynk/redirect-service
 ```
 
-### 5. Kiểm tra kết nối qua Ingress
+Swagger UI có tại `http://localhost:3001/documentation` và `http://localhost:3002/documentation`.
+
+### 3. Deploy toàn bộ phiên bản hiện tại vào local Kubernetes
+
+Yêu cầu Docker đang chạy và tài khoản hiện tại có quyền dùng Docker socket. Lệnh dưới đây tạo hoặc dùng lại `kind` cluster, cài Traefik nếu thiếu, rồi triển khai vào namespace riêng `lynk-local`:
 
 ```bash
-# Kiểm tra liveness probe qua Traefik Ingress
-curl -i http://localhost/health
-
-# Kiểm tra readiness probe qua Traefik Ingress
-curl -i http://localhost/health/ready
+make k8s-local-deploy
 ```
+
+Script tạo/reuse database và JWT/mTLS Secrets, ba PostgreSQL StatefulSets, Redis 8 và Kafka KRaft có PVC. Script build ba service images có shared package, chạy migration Jobs trước rollout, provision topics và kiểm tra opaque login, ownership, replication trước click, refresh reuse/logout và redirect `302`. Xem [Sprint 3A runbook](sprint3a.md) cho API và failure tests.
+
+Mỗi lần chạy sẽ dùng image tag mới để Pod nhận đúng code mới. Secret và PVC được dùng lại, không tự xóa dữ liệu. Nếu Secret database mất nhưng PVC còn, script dừng để tránh tạo mật khẩu mới không khớp database cũ. PVC giữ dữ liệu qua Pod restart, nhưng xóa cả cluster `kind` sẽ làm mất dữ liệu local.
+
+Mỗi PostgreSQL local chỉ có một Pod. Trong lúc Pod này khởi động lại, các request cần database có thể lỗi tạm thời; đợi readiness trở lại trước khi kiểm tra dữ liệu. PVC giúp giữ dữ liệu, không cung cấp high availability.
+
+### 4. Kiểm tra thủ công
+
+Đăng ký/đăng nhập theo [Sprint 3A runbook](sprint3a.md) và đặt `ACCESS_TOKEN` trước khi tạo URL.
+
+```bash
+kubectl -n lynk-local get pods,svc,pvc,jobs
+curl -i --resolve lynk.localhost:80:127.0.0.1 http://lynk.localhost/health/ready
+curl -i --resolve lynk.localhost:80:127.0.0.1 \
+  -H 'content-type: application/json' \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{"originalUrl":"https://example.com","customAlias":"DemoLink"}' \
+  http://lynk.localhost/api/v1/urls
+curl -i --resolve lynk.localhost:80:127.0.0.1 http://lynk.localhost/DemoLink
+```
+
+Ingress chỉ nhận host `lynk.localhost` cho bản local. Lệnh `--resolve` đảm bảo `curl` trỏ tới `127.0.0.1` mà không cần sửa DNS. Helm local dùng namespace `lynk-local`; cluster kind không cài Argo CD hay tạo `lynk-staging`.
+
+## Staging Kubernetes + Supabase
+
+`kind` là môi trường local/integration, không dùng cho staging. Nếu triển khai staging trên một cluster khác, môi trường đó có thể dùng Argo CD, Redis 8 trong cluster và hai Supabase PostgreSQL database riêng. Người vận hành phải tạo các Secret trước khi sync; Argo CD chạy hai migration Job `PreSync`, và migration thất bại sẽ chặn rollout tương ứng.
+
+### Redis failure test
+
+Chỉ thực hiện trên staging test data:
+
+```bash
+argocd app set lynk-redis --sync-policy none
+kubectl -n lynk-staging scale statefulset lynk-redis-master --replicas=0
+BASE_URL=https://lynk.example.com TARGET_RPS=50 DURATION=60s \
+  SUMMARY_PATH=results/redis-down.json k6 run benchmarks/k6-redirect.js
+kubectl -n lynk-staging scale statefulset lynk-redis-master --replicas=1
+argocd app set lynk-redis --sync-policy automated --self-heal --auto-prune
+```
+
+Xác nhận error rate bằng 0 trước khi ghi kết quả vào báo cáo experiment.
 
 ---
 
 ## 🎛️ Truy cập các bảng điều khiển (Dashboards)
 
-| Công cụ               | Địa chỉ truy cập             | Ghi chú                        |
-| :-------------------- | :--------------------------- | :----------------------------- |
-| **Traefik Ingress**   | `http://localhost` (Port 80) | Cổng Ingress điều hướng chính  |
-| **Traefik Dashboard** | `http://localhost:8080`      | Giám sát routers & middlewares |
-| **ArgoCD Web UI**     | `http://localhost:32081`     | Quản lý GitOps deployment      |
-
-### Lấy mật khẩu đăng nhập ban đầu của ArgoCD:
-
-- **Username:** `admin`
-- **Password:**
-  ```bash
-  kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo ""
-  ```
+| Công cụ             | Địa chỉ truy cập        | Ghi chú                     |
+| :------------------ | :---------------------- | :-------------------------- |
+| **Traefik Ingress** | `http://lynk.localhost` | Cổng Ingress local, port 80 |
 
 ---
 

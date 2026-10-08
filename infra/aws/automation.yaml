@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lynk GitHub OIDC and bounded deployment access (existing infrastructure retained)
+Parameters:
+  InstanceId: { Type: String }
+  InstanceRoleName: { Type: String }
+  ArtifactBucket: { Type: String }
+  OidcProviderArn:
+    Type: String
+    Default: ''
+Conditions:
+  CreateProvider: !Equals [!Ref OidcProviderArn, '']
+Resources:
+  GitHubProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+  DeployDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      Name: LynkDeploy
+      DocumentType: Command
+      UpdateMethod: NewVersion
+      Content:
+        schemaVersion: '2.2'
+        description: Deploy a validated Lynk release using the installed root-owned entrypoint
+        parameters:
+          ReleaseId:
+            type: String
+            interpolationType: ENV_VAR
+            allowedPattern: '^[0-9a-f]{40}$'
+          Action:
+            type: String
+            interpolationType: ENV_VAR
+            allowedPattern: '^(deploy|rollback)$'
+          Revision:
+            type: String
+            default: '0'
+            interpolationType: ENV_VAR
+            allowedPattern: '^[0-9]+$'
+        mainSteps:
+          - action: aws:runShellScript
+            name: deploy
+            inputs:
+              timeoutSeconds: '3600'
+              runCommand:
+                - '/opt/lynk/bin/deploy.sh "$SSM_Action" "$SSM_ReleaseId" "$SSM_Revision"'
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: lynk-github-deploy
+      MaxSessionDuration: 7200
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If [CreateProvider, !Ref GitHubProvider, !Ref OidcProviderArn]
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: repo:ngqkhai/lynk-url-shortener:environment:aws-demo
+      Policies:
+        - PolicyName: release-deploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject]
+                Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/releases/*'
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${InstanceId}'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/LynkDeploy'
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation]
+                Resource: '*'
+  BootstrapRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: lynk-github-bootstrap
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If [CreateProvider, !Ref GitHubProvider, !Ref OidcProviderArn]
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: repo:ngqkhai/lynk-url-shortener:environment:aws-bootstrap
+      Policies:
+        - PolicyName: bootstrap-ssm
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ssm:StartSession
+                Resource:
+                  - !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${InstanceId}'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}::document/SSM-SessionManagerRunShell'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/SSM-SessionManagerRunShell'
+              - Effect: Allow
+                Action: [ssm:TerminateSession, ssm:ResumeSession]
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:session/*'
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/${InstanceId}/*'
+              - Effect: Allow
+                Action: [s3:GetBucketLocation, s3:ListBucket]
+                Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}'
+  NodeArtifactPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: lynk-release-artifacts
+      Roles: [!Ref InstanceRoleName]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/releases/*'
+          - Effect: Allow
+            Action: s3:PutObject
+            Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/deploy-logs/*'
+Outputs:
+  DeployRoleArn: { Value: !GetAtt DeployRole.Arn }
+  BootstrapRoleArn: { Value: !GetAtt BootstrapRole.Arn }

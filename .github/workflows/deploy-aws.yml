@@ -1,0 +1,53 @@
+name: Deploy AWS
+on:
+  workflow_call:
+    inputs:
+      release-sha: { type: string, required: true }
+      upload-artifact: { type: boolean, default: false }
+  workflow_dispatch:
+    inputs:
+      release-sha:
+        description: Successful main commit SHA (40 hexadecimal characters)
+        required: true
+        type: string
+      action:
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      revision:
+        description: Successful Helm revision for rollback; 0 for deploy
+        default: '0'
+        type: string
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: lynk-aws-deployment
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: aws-demo
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-southeast-1
+          role-duration-seconds: 4200
+      - uses: actions/download-artifact@v4
+        if: inputs.upload-artifact
+        with:
+          name: release
+          path: release-upload
+      - name: Upload release and invoke bounded SSM deployment
+        env:
+          RELEASE_SHA: ${{ inputs.release-sha }}
+          DEPLOY_ACTION: ${{ inputs.action || 'deploy' }}
+          HELM_REVISION: ${{ inputs.revision || '0' }}
+          UPLOAD_RELEASE: ${{ inputs.upload-artifact }}
+          ARTIFACT_BUCKET: ${{ vars.AWS_ARTIFACT_BUCKET }}
+          INSTANCE_ID: ${{ vars.AWS_INSTANCE_ID }}
+        run: python3 scripts/cd/invoke-ssm.py

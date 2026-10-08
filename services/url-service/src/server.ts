@@ -7,7 +7,7 @@ const app = buildApp(env);
 async function start(): Promise<void> {
   try {
     const address = await app.listen({ port: env.PORT, host: env.HOST });
-    app.log.info(`url-service listening on ${address}`);
+    app.log.info({ address }, 'url-service listening');
   } catch (err) {
     app.log.error(err);
     process.exit(1);

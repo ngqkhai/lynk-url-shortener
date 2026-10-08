@@ -1,10 +1,13 @@
+global:
+  imageTag: '7997f9fd460a1f442a5391a7b7ec94f99c99f145'
+  migrationHookMode: argocd
+
 urlService:
   enabled: true
   replicaCount: 1
 
   image:
     repository: ghcr.io/ngqkhai/lynk-url-service
-    tag: "18de1e4dd893d5068699ff2a696bc3fe821e7999"
     pullPolicy: IfNotPresent
 
   service:
@@ -12,7 +15,7 @@ urlService:
 
   ingress:
     enabled: true
-    host: "" # Empty = wildcard match, uses path only
+    host: '' # Empty = wildcard match, uses path only
 
   resources:
     requests:
@@ -24,6 +27,93 @@ urlService:
 
   env:
     NODE_ENV: production
-    PORT: "3001"
-    HOST: "0.0.0.0"
+    PORT: '3001'
+    HOST: '0.0.0.0'
     LOG_LEVEL: info
+    PUBLIC_BASE_URL: 'https://lynk.example.com'
+    AUTH_REQUIRED: 'false'
+    URL_EVENTS_ENABLED: 'false'
+
+  database:
+    existingSecret: url-service-db
+    secretKey: DATABASE_URL
+
+redirectService:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/ngqkhai/lynk-redirect-service
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 3002
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  env:
+    NODE_ENV: production
+    PORT: '3002'
+    HOST: '0.0.0.0'
+    LOG_LEVEL: info
+    REDIS_URL: 'redis://lynk-redis-master:6379'
+    URL_SERVICE_BASE_URL: 'http://url-service:3001'
+    CACHE_ENABLED: 'true'
+    CACHE_TTL_SECONDS: '3600'
+    CACHE_OPERATION_TIMEOUT_MS: '50'
+    UPSTREAM_TIMEOUT_MS: '500'
+    URL_EVENTS_ENABLED: 'false'
+
+  database:
+    existingSecret: redirect-service-db
+    secretKey: DATABASE_URL
+
+  redis:
+    existingSecret: lynk-redis-auth
+    passwordKey: redis-password
+
+# Staging remains inactive until a separate rollout is authorized.
+phantomToken:
+  enabled: false
+  caSecret: lynk-gateway-ca
+  clientSecret: lynk-gateway-client
+  serverSecret: lynk-gateway-server
+  jwtSecret: lynk-jwt-keys
+
+authService:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: ghcr.io/ngqkhai/lynk-auth-service
+    pullPolicy: IfNotPresent
+  service:
+    port: 3004
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 256Mi
+  env:
+    NODE_ENV: production
+    PORT: '3004'
+    HOST: '0.0.0.0'
+    LOG_LEVEL: info
+    JWT_PRIVATE_KEY_PATH: /keys/jwt-private.pem
+    JWT_PUBLIC_KEY_PATH: /keys/jwt-public.pem
+    JWT_KEY_ID: local-v1
+    GATEWAY_PORT: '3005'
+    GATEWAY_CA_PATH: /tls/ca.crt
+    GATEWAY_CERT_PATH: /tls/server.crt
+    GATEWAY_KEY_PATH: /tls/server.key
+    GATEWAY_CLIENT_CN: lynk-traefik
+  database:
+    existingSecret: auth-service-db
+    secretKey: DATABASE_URL

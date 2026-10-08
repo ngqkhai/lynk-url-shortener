@@ -1,0 +1,42 @@
+name: Bootstrap AWS platform
+on:
+  workflow_dispatch:
+    inputs:
+      check:
+        description: Inspect changes without applying
+        type: boolean
+        default: true
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: lynk-aws-deployment
+  cancel-in-progress: false
+jobs:
+  bootstrap:
+    if: github.ref == 'refs/heads/main'
+    environment: aws-bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_BOOTSTRAP_ROLE_ARN }}
+          aws-region: ap-southeast-1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ansible and SSM plugin
+        run: |
+          pip install -r infra/ansible/requirements.txt
+          ansible-galaxy collection install -r infra/ansible/requirements.yml
+          curl -fsS https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb -o /tmp/ssm.deb
+          sudo dpkg -i /tmp/ssm.deb
+      - name: Configure platform using SSM
+        env:
+          CHECK: ${{ inputs.check }}
+        run: |
+          args=()
+          if [[ "$CHECK" == true ]]; then args+=(--check); fi
+          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml "${args[@]}"

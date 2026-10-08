@@ -17,12 +17,3 @@ nodes:
       - containerPort: 443
         hostPort: 443
         protocol: TCP
-      - containerPort: 32080
-        hostPort: 32080
-        protocol: TCP
-      - containerPort: 32443
-        hostPort: 32443
-        protocol: TCP
-      - containerPort: 8080
-        hostPort: 8080
-        protocol: TCP

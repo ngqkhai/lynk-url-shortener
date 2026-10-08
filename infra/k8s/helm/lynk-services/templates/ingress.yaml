@@ -1,35 +1,44 @@
 {{- if .Values.urlService.ingress.enabled }}
+{{- $root := . }}
+{{- $groups := list (dict "name" "public" "paths" (list (dict "path" "/health" "service" "url-service" "port" .Values.urlService.service.port) (dict "path" "/documentation" "service" "url-service" "port" .Values.urlService.service.port) (dict "path" "/" "service" "redirect-service" "port" .Values.redirectService.service.port))) (dict "name" "urls" "protected" true "paths" (list (dict "path" "/api/v1/urls" "service" "url-service" "port" .Values.urlService.service.port))) }}
+{{- if .Values.authService.enabled }}
+{{- $groups = append $groups (dict "name" "auth-public" "paths" (list (dict "path" "/api/v1/auth" "service" "auth-service" "port" .Values.authService.service.port))) }}
+{{- $groups = append $groups (dict "name" "auth-me" "protected" true "paths" (list (dict "path" "/api/v1/auth/me" "service" "auth-service" "port" .Values.authService.service.port))) }}
+{{- end }}
+{{- range $group := $groups }}
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: url-service-ingress
-  namespace: lynk-staging
+  name: lynk-{{ $group.name }}
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: {{ $root.Values.global.ingressEntryPoint | default "web" }}
+    {{- if $root.Values.global.tlsEnabled }}
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    {{- end }}
+    {{- if and $group.protected $root.Values.phantomToken.enabled }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ $root.Release.Namespace }}-phantom-token@kubernetescrd
+    traefik.ingress.kubernetes.io/router.priority: "200"
+    {{- end }}
 spec:
   ingressClassName: traefik
   rules:
+    {{- if $root.Values.urlService.ingress.host }}
+    - host: {{ $root.Values.urlService.ingress.host | quote }}
+      http:
+    {{- else }}
     - http:
+    {{- end }}
         paths:
-          - path: /health
+          {{- range $path := $group.paths }}
+          - path: {{ $path.path }}
             pathType: Prefix
             backend:
               service:
-                name: url-service
+                name: {{ $path.service }}
                 port:
-                  number: {{ .Values.urlService.service.port }}
-          - path: /api/v1/urls
-            pathType: Prefix
-            backend:
-              service:
-                name: url-service
-                port:
-                  number: {{ .Values.urlService.service.port }}
-          - path: /
-            pathType: Exact
-            backend:
-              service:
-                name: url-service
-                port:
-                  number: {{ .Values.urlService.service.port }}
+                  number: {{ $path.port }}
+          {{- end }}
+{{- end }}
 {{- end }}

@@ -1,0 +1,14 @@
+{
+  "DocumentName": "AWS-RunShellScript",
+  "InstanceIds": ["i-03bb7dcb94ec8bd21"],
+  "Parameters": {
+    "commands": [
+      "sudo kubectl get nodes",
+      "sudo systemctl is-active k3s",
+      "sudo install -d -m 700 -o ubuntu -g ubuntu /home/ubuntu/.ssh",
+      "printf '%s\\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFiviSjsMaSAapjiMlcBIMpW/MqI75IF4urM+ImsKXYL lynk-aws-admin' | sudo tee -a /home/ubuntu/.ssh/authorized_keys >/dev/null",
+      "sudo chown ubuntu:ubuntu /home/ubuntu/.ssh/authorized_keys",
+      "sudo chmod 600 /home/ubuntu/.ssh/authorized_keys"
+    ]
+  }
+}

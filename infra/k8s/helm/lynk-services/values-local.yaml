@@ -1,0 +1,33 @@
+global:
+  migrationHookMode: helm
+
+urlService:
+  image:
+    repository: lynk-url-service
+    pullPolicy: Never
+  ingress:
+    host: lynk.localhost
+  env:
+    PUBLIC_BASE_URL: http://lynk.localhost
+    AUTH_REQUIRED: 'true'
+    JWT_PUBLIC_KEY_PATH: /keys/jwt-public.pem
+    URL_EVENTS_ENABLED: 'true'
+    KAFKA_BROKERS: kafka:9092
+
+redirectService:
+  image:
+    repository: lynk-redirect-service
+    pullPolicy: Never
+
+  env:
+    URL_EVENTS_ENABLED: 'true'
+    KAFKA_BROKERS: kafka:9092
+
+phantomToken:
+  enabled: true
+
+authService:
+  enabled: true
+  image:
+    repository: lynk-auth-service
+    pullPolicy: Never

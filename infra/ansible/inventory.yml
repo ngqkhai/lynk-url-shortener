@@ -1,0 +1,10 @@
+all:
+  hosts:
+    lynk:
+      ansible_host: i-03bb7dcb94ec8bd21
+      ansible_connection: amazon.aws.aws_ssm
+      ansible_aws_ssm_region: ap-southeast-1
+      ansible_aws_ssm_bucket_name: lynk-k3s-dev-artifactbucket-acumvnfx55sd
+      ansible_python_interpreter: /usr/bin/python3
+      ansible_become: true
+      ansible_become_user: root

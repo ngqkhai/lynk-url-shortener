@@ -1,8 +1,17 @@
 deployment:
   kind: DaemonSet
 
+# A single kind node cannot schedule a second Traefik Pod while hostPort 80/443
+# are held by the old Pod. Replace it first during upgrades.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 0
+
 service:
-  type: NodePort
+  spec:
+    type: ClusterIP
 
 ports:
   web:
@@ -25,9 +34,6 @@ tolerations:
 
 nodeSelector:
   ingress-ready: 'true'
-
-additionalArguments:
-  - '--api.insecure=true'
 
 ingressRoute:
   dashboard:

@@ -1,0 +1,69 @@
+{{- if .Values.redirectService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redirect-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: redirect-service
+    version: {{ .Chart.AppVersion | quote }}
+spec:
+  {{- if .Values.global.lowMemoryRollout }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 0, maxUnavailable: 1 }
+  {{- end }}
+  replicas: {{ .Values.redirectService.replicaCount }}
+  selector:
+    matchLabels:
+      app: redirect-service
+  template:
+    metadata:
+      labels:
+        app: redirect-service
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: redirect-service
+          image: {{ include "lynk.image" (dict "image" .Values.redirectService.image "tag" .Values.global.imageTag) | quote }}
+          imagePullPolicy: {{ .Values.redirectService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.redirectService.service.port }}
+              protocol: TCP
+          env:
+            {{- range $key, $val := .Values.redirectService.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redirectService.database.existingSecret }}
+                  key: {{ .Values.redirectService.database.secretKey }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redirectService.redis.existingSecret }}
+                  key: {{ .Values.redirectService.redis.passwordKey }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            timeoutSeconds: {{ .Values.global.livenessTimeoutSeconds | default 1 }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            timeoutSeconds: {{ .Values.global.readinessTimeoutSeconds | default 1 }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.redirectService.resources | nindent 12 }}
+{{- end }}

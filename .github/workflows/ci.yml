@@ -26,67 +26,136 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Deployment failure scenarios
+        run: python3 scripts/cd/test-deploy.py
+
       - name: Run tests
         run: npm run test
+        env:
+          RUN_INTEGRATION_TESTS: true
 
-  # ─── Build & Push Docker Image (runs on main branch merge only) ──────────────
+  gateway-e2e:
+    name: Phantom gateway & Kafka resilience
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: End-to-end Sprint 3A
+        run: bash scripts/test-sprint3a.sh
+
+  automation-checks:
+    name: Infrastructure and Helm checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate automation
+        run: |
+          pip install -r infra/ansible/requirements.txt cfn-lint==1.57.2
+          ansible-galaxy collection install -r infra/ansible/requirements.yml
+          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
+          cfn-lint infra/aws/stack.yaml infra/aws/automation.yaml
+          bash -n scripts/cd/deploy.sh scripts/bootstrap-aws-platform.sh
+          curl -fsS https://get.helm.sh/helm-v3.21.2-linux-amd64.tar.gz -o /tmp/helm.tar.gz
+          tar -xzf /tmp/helm.tar.gz -C /tmp
+          /tmp/linux-amd64/helm lint infra/k8s/helm/lynk-services -f infra/k8s/helm/lynk-services/values-aws.yaml
+
   build-and-push:
-    name: Build & Push to GHCR
-    needs: lint-and-test
+    name: Publish immutable images
+    needs: [lint-and-test, gateway-e2e, automation-checks]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     strategy:
       matrix:
-        service:
-          - name: url-service
-            image: lynk-url-service
-
+        service: [url, redirect, auth]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push ${{ matrix.service.name }}
-        uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v6
+        id: image
         with:
           context: .
-          file: ./services/${{ matrix.service.name }}/Dockerfile
+          file: services/${{ matrix.service }}-service/Dockerfile
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:${{ github.sha }}
+          platforms: linux/amd64
+          labels: |
+            org.opencontainers.image.source=https://github.com/ngqkhai/lynk-url-shortener
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ghcr.io/ngqkhai/lynk-${{ matrix.service }}-service:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Record digest
+        env:
+          SERVICE: ${{ matrix.service }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          python3 - <<'PYCODE'
+          import json, os
+          service=os.environ['SERVICE']
+          with open(service+'.json','w') as f:
+              json.dump({'repository':'ghcr.io/ngqkhai/lynk-'+service+'-service','digest':os.environ['DIGEST']},f)
+          PYCODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.service }}
+          path: ${{ matrix.service }}.json
 
-  # ─── Update GitOps Manifests (after successful image push) ───────────────────
-  update-gitops:
-    name: Update GitOps Image Tag
+  package-release:
     needs: build-and-push
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update image tag in Helm values
+          pattern: image-*
+          merge-multiple: true
+          path: image-metadata
+      - name: Package release
+        env:
+          COMMIT: ${{ github.sha }}
         run: |
-          sed -i "s|tag: \".*\"|tag: \"${{ github.sha }}\"|g" \
-            infra/k8s/helm/lynk-services/values.yaml
-
-      - name: Commit and push updated values
+          python3 scripts/cd/package-release.py --sha "$COMMIT" --metadata image-metadata --output release
+          tar -czf release.tar.gz -C release .
+          sha256sum release.tar.gz > release.sha256
+      - name: Verify images can be pulled anonymously
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add infra/k8s/helm/lynk-services/values.yaml
-          git diff --staged --quiet || git commit -m "chore(gitops): update url-service image to ${{ github.sha }}"
-          git push
+          mkdir -p /tmp/lynk-anonymous-docker
+          python3 - <<'PYCODE'
+          import json, subprocess
+          manifest=json.load(open('release/release.json'))
+          for value in manifest['images'].values():
+              image=value['image']
+              ref=image['repository']+'@'+image['digest']
+              subprocess.run(['docker','--config','/tmp/lynk-anonymous-docker','manifest','inspect',ref],check=True,stdout=subprocess.DEVNULL)
+          PYCODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            release.tar.gz
+            release.sha256
+
+  deploy:
+    needs: package-release
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-aws.yml
+    with:
+      release-sha: ${{ github.sha }}
+      upload-artifact: true

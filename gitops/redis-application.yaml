@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: lynk-redis
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: registry-1.docker.io/bitnamicharts
+    chart: redis
+    targetRevision: 28.0.15
+    helm:
+      releaseName: lynk-redis
+      values: |
+        architecture: standalone
+        auth:
+          enabled: true
+          existingSecret: lynk-redis-auth
+          existingSecretPasswordKey: redis-password
+        master:
+          persistence:
+            enabled: false
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+        replica:
+          replicaCount: 0
+        metrics:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: lynk-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

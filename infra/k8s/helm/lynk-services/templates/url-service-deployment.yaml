@@ -3,11 +3,16 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: url-service
-  namespace: lynk-staging
+  namespace: {{ .Release.Namespace }}
   labels:
     app: url-service
     version: {{ .Chart.AppVersion | quote }}
 spec:
+  {{- if .Values.global.lowMemoryRollout }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 0, maxUnavailable: 1 }
+  {{- end }}
   replicas: {{ .Values.urlService.replicaCount }}
   selector:
     matchLabels:
@@ -19,7 +24,7 @@ spec:
     spec:
       containers:
         - name: url-service
-          image: "{{ .Values.urlService.image.repository }}:{{ .Values.urlService.image.tag }}"
+          image: {{ include "lynk.image" (dict "image" .Values.urlService.image "tag" .Values.global.imageTag) | quote }}
           imagePullPolicy: {{ .Values.urlService.image.pullPolicy }}
           ports:
             - name: http
@@ -30,10 +35,22 @@ spec:
             - name: {{ $key }}
               value: {{ $val | quote }}
             {{- end }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.urlService.database.existingSecret }}
+                  key: {{ .Values.urlService.database.secretKey }}
+          {{- if eq .Values.urlService.env.AUTH_REQUIRED "true" }}
+          volumeMounts:
+            - name: jwt-public-key
+              mountPath: /keys
+              readOnly: true
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health
               port: http
+            timeoutSeconds: {{ .Values.global.livenessTimeoutSeconds | default 1 }}
             initialDelaySeconds: 10
             periodSeconds: 15
             failureThreshold: 3
@@ -41,11 +58,21 @@ spec:
             httpGet:
               path: /health/ready
               port: http
+            timeoutSeconds: {{ .Values.global.readinessTimeoutSeconds | default 1 }}
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 3
           resources:
             {{- toYaml .Values.urlService.resources | nindent 12 }}
+      {{- if eq .Values.urlService.env.AUTH_REQUIRED "true" }}
+      volumes:
+        - name: jwt-public-key
+          secret:
+            secretName: {{ .Values.phantomToken.jwtSecret }}
+            items:
+              - key: jwt-public.pem
+                path: jwt-public.pem
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

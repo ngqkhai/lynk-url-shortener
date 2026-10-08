@@ -1,0 +1,42 @@
+{{- if .Values.redirectService.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redirect-service-migrate
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- if eq .Values.global.migrationHookMode "helm" }}
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+    {{- else }}
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    {{- end }}
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: redirect-service-migrate
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: migrate
+          image: {{ include "lynk.image" (dict "image" .Values.redirectService.image "tag" .Values.global.imageTag) | quote }}
+          imagePullPolicy: {{ .Values.redirectService.image.pullPolicy }}
+          command: ["node", "dist/infra/migrate.js"]
+          env:
+            {{- range $key, $val := .Values.redirectService.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redirectService.database.existingSecret }}
+                  key: {{ .Values.redirectService.database.secretKey }}
+{{- end }}

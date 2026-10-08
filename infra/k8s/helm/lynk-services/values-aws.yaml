@@ -1,0 +1,41 @@
+global:
+  migrationHookMode: helm
+  lowMemoryRollout: true
+  readinessTimeoutSeconds: 15
+  livenessTimeoutSeconds: 10
+  ingressEntryPoint: websecure
+  tlsEnabled: true
+urlService:
+  image: { repository: lynk-url-service, pullPolicy: Never }
+  ingress: { host: lynk.codes }
+  env:
+    PUBLIC_BASE_URL: https://lynk.codes
+    AUTH_REQUIRED: 'true'
+    JWT_PUBLIC_KEY_PATH: /keys/jwt-public.pem
+    URL_EVENTS_ENABLED: 'true'
+    KAFKA_BROKERS: kafka:9092
+    OUTBOX_IDLE_POLL_MS: '1800000'
+    DB_READINESS_CACHE_SECONDS: '900'
+    DB_CONNECT_TIMEOUT_SECONDS: '10'
+redirectService:
+  image: { repository: lynk-redirect-service, pullPolicy: Never }
+  env:
+    URL_EVENTS_ENABLED: 'true'
+    KAFKA_BROKERS: kafka:9092
+    DB_READINESS_CACHE_SECONDS: '900'
+    DB_CONNECT_TIMEOUT_SECONDS: '10'
+    UPSTREAM_TIMEOUT_MS: '15000'
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+phantomToken:
+  enabled: true
+authService:
+  enabled: true
+  image: { repository: lynk-auth-service, pullPolicy: Never }
+  env:
+    DB_READINESS_CACHE_SECONDS: '900'
+    DB_CONNECT_TIMEOUT_SECONDS: '10'
+  resources:
+    requests: { cpu: 100m, memory: 96Mi }
+    limits: { cpu: 500m, memory: 192Mi }

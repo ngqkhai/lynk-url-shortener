@@ -1,8 +1,8 @@
 # 🤖 Claude AI Engineering Guidelines
 
-This repository uses **[AGENT.md](./AGENT.md)** as the single source of truth for engineering standards, architecture rules, and coding conventions.
+This repository uses **[AGENTS.md](./AGENTS.md)** as the single source of truth for engineering standards, architecture rules, and coding conventions.
 
-Please read and strictly follow **[AGENT.md](./AGENT.md)** for:
+Please read and strictly follow **[AGENTS.md](./AGENTS.md)** for:
 
 1. **Core Philosophy:** _"Build ➔ Deploy ➔ Measure ➔ Explain"_.
 2. **Microservice Data Ownership:** Strict bounded contexts between `url-service`, `redirect-service`, and `analytics-service`.

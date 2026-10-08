@@ -1,0 +1,1 @@
+ALTER TABLE "redirect_urls" ADD COLUMN "owner_id" uuid;

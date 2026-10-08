@@ -1,6 +1,10 @@
 import { FastifyInstance } from 'fastify';
+import { DatabaseClient } from '../infra/db.js';
 
-export async function healthRoutes(fastify: FastifyInstance): Promise<void> {
+export async function healthRoutes(
+  fastify: FastifyInstance,
+  options: { database: DatabaseClient },
+): Promise<void> {
   fastify.get('/', async (_request, reply) => {
     return reply.status(200).send({
       service: 'lynk-url-service',
@@ -19,13 +23,16 @@ export async function healthRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get('/health/ready', async (_request, reply) => {
-    // Sprint 0: Walking skeleton has no DB dependencies yet
-    return reply.status(200).send({
-      status: 'ready',
-      service: 'url-service',
-      checks: {
-        database: 'not_configured_sprint_0',
-      },
-    });
+    try {
+      await options.database.ping();
+      return reply
+        .status(200)
+        .send({ status: 'ready', service: 'url-service', checks: { database: 'ok' } });
+    } catch (error) {
+      fastify.log.error(error, 'Database readiness check failed');
+      return reply
+        .status(503)
+        .send({ status: 'not_ready', service: 'url-service', checks: { database: 'unavailable' } });
+    }
   });
 }

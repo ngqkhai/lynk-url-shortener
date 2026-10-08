@@ -35,3 +35,12 @@ Thumbs.db
 # Kubernetes & Local Cluster temporary files
 *.kubeconfig
 kind-config.local.yaml
+.neon
+
+# Agent tooling and cloud credentials
+.agents/
+.codex/
+.neon
+*.tfstate
+*.tfstate.*
+.terraform/

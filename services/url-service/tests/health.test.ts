@@ -2,19 +2,30 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { Env } from '../src/config/env.js';
+import { DatabaseClient } from '../src/infra/db.js';
 
 describe('Health and Readiness Routes', () => {
   let app: FastifyInstance;
 
   const testEnv: Env = {
     NODE_ENV: 'test',
+    AUTH_REQUIRED: false,
+    URL_EVENTS_ENABLED: false,
     PORT: 3001,
     HOST: '0.0.0.0',
     LOG_LEVEL: 'fatal',
+    DATABASE_URL: 'postgres://test:test@localhost:5432/test',
+    PUBLIC_BASE_URL: 'http://localhost',
+  };
+
+  const database: DatabaseClient = {
+    db: {} as DatabaseClient['db'],
+    close: async () => undefined,
+    ping: async () => undefined,
   };
 
   beforeAll(async () => {
-    app = buildApp(testEnv);
+    app = buildApp(testEnv, { database });
     await app.ready();
   });
 
@@ -58,5 +69,6 @@ describe('Health and Readiness Routes', () => {
     const body = JSON.parse(response.payload);
     expect(body.status).toBe('ready');
     expect(body.service).toBe('url-service');
+    expect(body.checks.database).toBe('ok');
   });
 });
