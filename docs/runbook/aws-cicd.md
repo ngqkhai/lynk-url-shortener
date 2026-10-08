@@ -59,13 +59,21 @@ helm lint infra/k8s/helm/lynk-services -f infra/k8s/helm/lynk-services/values-aw
 ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
 ```
 
-Failure scenarios cover image pull, migration, smoke/rollback, traversal rejection and successful release recording using simulated transports. Live CI/OIDC/image publication acceptance requires the PR to be merged into main. Do not merge automatically merely to exercise CD.
+Failure scenarios cover image pull, migration, smoke/rollback, traversal rejection and successful release recording using simulated transports. The first main CI/OIDC delivery passed after the immutable-subject fix; see the recovery evidence below. Do not merge automatically merely to exercise CD.
 
 ## Execution evidence
 
 - Initial Ansible apply succeeded on the existing instance; secrets and workload images were preserved. Repeat confirmed unchanged K3s configuration, tooling, runtime entrypoint and archive. Kafka's client-side apply reported configured despite a zero diff; reconciliation now checks diff before applying.
 - Public application Pods remained Ready after bootstrap. Local validation: 42 app tests and seven deployment failure tests passed, as did lint/build/format, actionlint, cfn-lint, Helm lint and Ansible syntax.
 - PR #1 includes the explicitly authorized previous Sprint 3A/AWS changes. Main's old GitOps image-tag commit conflicted; it was merged and the obsolete per-service tag removed. PR CI passed all three test groups before the final reconciliation adjustment.
-- Production CD/OIDC acceptance remains pending main merge and public GHCR visibility. The PR is not automatically merged.
+- Initial production CD/OIDC acceptance was pending at this checkpoint; the first main delivery subsequently passed after the immutable-subject fix. The original delivery PR was merged by the user.
 
-Transport acceptance on the live node: a deliberately incomplete release was downloaded and checksum-verified through `LynkDeploy`, then rejected before Helm; stdout/stderr reached private S3 (two output files). The test release was removed and the application remained on its existing Helm revision. This verifies the installed entrypoint and node/SSM/S3 path using SSO; GitHub OIDC still requires the first main workflow. The Ansible collection calls S3 HeadBucket, so the bootstrap role additionally permits bucket listing/location lookup; object access stays limited to the instance transport prefix.
+Transport acceptance on the live node: a deliberately incomplete release was downloaded and checksum-verified through `LynkDeploy`, then rejected before Helm; stdout/stderr reached private S3 (two output files). The test release was removed and the application remained on its existing Helm revision. This verifies the installed entrypoint and node/SSM/S3 path using SSO; This transport check alone did not prove GitHub OIDC; the later main workflow verified it. The Ansible collection calls S3 HeadBucket, so the bootstrap role additionally permits bucket listing/location lookup; object access stays limited to the instance transport prefix.
+
+## OIDC subject mismatch recovery
+
+Repository OIDC configuration returns `use_immutable_subject: true` and `sub_claim_prefix: repo:ngqkhai@92835482/lynk-url-shortener@1365808803`. Both role trust policies must append their environment to this exact prefix. The `GitHubSubjectPrefix` CloudFormation parameter keeps this explicit; inspect `gh api repos/ngqkhai/lynk-url-shortener/actions/oidc/customization/sub` when bootstrapping another repository. Do not infer subject format from repository name alone or widen the trust policy to a wildcard.
+
+First main run `37839590947` passed CI, image publication and anonymous pulls but failed STS before any SSM deployment, because the original policies used the legacy subject. Update stack `lynk-cicd` with the immutable prefix, then rerun failed jobs (reuse the existing release artifact; do not rebuild the successful images merely to retry OIDC).
+
+Recovery acceptance: main run `37839590947` succeeded on retry after the trust-policy update. OIDC authentication, S3 release upload, `LynkDeploy` execution, digest image pulls, migration hooks and Helm rollout all passed. Release `b6cc75a477df508eadda3b0f57d9a9994b304a11` is deployed as Helm revision 6. Public smoke passed opaque tokens, owner isolation, refresh reuse/logout, redirect and Kafka replication before the first click. PR #2 carries the CloudFormation/source fix; live AWS was updated without waiting for that PR to merge. These checks verify the delivery path, not high availability or a live rollback fault injection.
