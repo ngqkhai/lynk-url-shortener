@@ -4,6 +4,8 @@ The deployment migration starts with [CP01 baseline and ownership](deployment-ch
 
 During migration, [CP02](deployment-checkpoints/cp02-freeze.md) requires review on `aws-demo`, disables admin bypass and sets `LYNK_DEPLOY_MODE=paused`. Its branch adds fail-closed mode guards; until those guards reach `main`, the environment reviewer gate protects the old workflow. Do not approve legacy deployment jobs during the freeze.
 
+[CP03](deployment-checkpoints/cp03-vault.md) establishes an encrypted runtime recovery bundle and the `aws-bootstrap` environment secret `ANSIBLE_VAULT_PASSWORD`. Its branch verifies recovery locally before bootstrap; Vault integration into fresh-host secret provisioning is planned for CP09. Runtime credentials and certificates remain unchanged.
+
 ## Ownership and prerequisites
 
 CloudFormation stack `lynk-k3s-dev` retains ownership of the existing EC2/network/storage. Stack `lynk-cicd` owns GitHub OIDC roles, the `LynkDeploy` SSM document and the node artifact policy. No Terraform import occurs.

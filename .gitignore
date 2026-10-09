@@ -44,3 +44,7 @@ kind-config.local.yaml
 *.tfstate
 *.tfstate.*
 .terraform/
+
+# Operator recovery password and temporary decrypted material (never commit)
+.recovery/
+__pycache__/

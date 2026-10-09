@@ -33,6 +33,10 @@ jobs:
           ansible-galaxy collection install -r infra/ansible/requirements.yml
           curl -fsS https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb -o /tmp/ssm.deb
           sudo dpkg -i /tmp/ssm.deb
+      - name: Verify encrypted recovery source locally without exposing runtime secrets
+        env:
+          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: python3 scripts/secrets/vault-bundle.py verify --password-env ANSIBLE_VAULT_PASSWORD
       - name: Configure platform using SSM
         env:
           CHECK: ${{ inputs.check }}

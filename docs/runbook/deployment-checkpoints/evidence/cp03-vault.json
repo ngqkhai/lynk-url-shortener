@@ -1,0 +1,82 @@
+{
+  "CommandId": "b1b9c1c6-c48e-4316-8b4d-2786cab857fc",
+  "InstanceId": "i-03bb7dcb94ec8bd21",
+  "Status": "Success",
+  "ResponseCode": 0,
+  "ExecutionStartDateTime": "2026-10-09T23:41:59.686Z",
+  "ExecutionEndDateTime": "2026-10-09T23:41:59.686Z",
+  "capture": {
+    "version": 1,
+    "files": [
+      "auth.env",
+      "url.env",
+      "redirect.env",
+      "redis-password",
+      "jwt-private.pem",
+      "jwt-public.pem",
+      "ca.crt",
+      "server.crt",
+      "server.key",
+      "client.crt",
+      "client.key"
+    ],
+    "runtime_matches": true,
+    "directory_mode": "0700",
+    "file_mode": "0600",
+    "file_uids": {
+      "auth.env": 1000,
+      "url.env": 1000,
+      "redirect.env": 1000,
+      "redis-password": 1000,
+      "jwt-private.pem": 1000,
+      "jwt-public.pem": 1000,
+      "ca.crt": 1000,
+      "server.crt": 1000,
+      "server.key": 1000,
+      "client.crt": 1000,
+      "client.key": 1000
+    },
+    "ca_key_present_at_expected_path": false
+  },
+  "verification": {
+    "archive_bytes_identical": true,
+    "restored_file_bytes_identical": true,
+    "restored_file_count": 11,
+    "existing_key_pairs_match": true,
+    "existing_mtls_chain_verifies": true,
+    "temporary_plaintext_cleaned": true,
+    "temporary_transfer_key_cleaned": true,
+    "runtime_rotated": false,
+    "synthetic_recovery_tests": 7,
+    "application_tests": 42,
+    "staged_actual_secret_scan_passed": true,
+    "readiness_http_status": 200,
+    "tls_verified": true
+  },
+  "artifact": {
+    "path": "infra/ansible/vault/aws-demo.tar.gz.vault",
+    "sha256": "c576ebb77a431930f10eb7713aa6c0ac31d17e843b9c6d50f4836798d5c5d7be",
+    "envelope": "$ANSIBLE_VAULT;1.2;AES256;aws-demo"
+  },
+  "operator_password_copy": {
+    "path": ".recovery/aws-demo.vault-password",
+    "directory_mode": "0o700",
+    "file_mode": "0o600",
+    "gitignored": true,
+    "off_host_password_manager_copy_confirmed": false
+  },
+  "bootstrap_environment_secret": {
+    "environment": "aws-bootstrap",
+    "name": "ANSIBLE_VAULT_PASSWORD",
+    "updatedAt": "2026-10-09T23:44:13Z",
+    "value_read_back": false
+  },
+  "initial_ci": {
+    "run_id": 38006065581,
+    "vault_and_application_checks": "success",
+    "gateway_e2e": "failure",
+    "cause": "local read DB startup connection failure escaped polling",
+    "fix": "retry psql exit 2 only in local read DB recovery predicate; preserve deadline and data assertion",
+    "predicate_scenarios_verified": 4
+  }
+}

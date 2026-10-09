@@ -147,7 +147,15 @@ if not KIND and not AWS and os.environ.get('LYNK_FAILURE_TESTS', 'true') == 'tru
         assert offsets() == baseline, 'Consumer advanced offsets while its DB was unavailable'
     finally:
         subprocess.run(COMPOSE + ['start', 'redirect-postgres'], check=True, stdout=subprocess.DEVNULL)
-    wait(lambda: db('redirect-postgres', 'lynk_redirects', f"select count(*) from redirect_urls where short_code='{durable}'") == '1', 'read DB recovery')
+    def read_db_recovered():
+        try:
+            return db('redirect-postgres', 'lynk_redirects', f"select count(*) from redirect_urls where short_code='{durable}'") == '1'
+        except subprocess.CalledProcessError as error:
+            # psql exit 2 is a connection failure while the restarted DB warms up.
+            if error.returncode != 2:
+                raise
+            return False
+    wait(read_db_recovered, 'read DB recovery')
     subprocess.run(COMPOSE + ['restart', 'redirect-service'], check=True, stdout=subprocess.DEVNULL)
     after_restart = 'Restart' + uuid.uuid4().hex[:12]
     assert request('/api/v1/urls', 'POST', {'originalUrl': 'https://example.com', 'customAlias': after_restart}, live['accessToken'])[0] == 201
