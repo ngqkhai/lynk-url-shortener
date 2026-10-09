@@ -1,5 +1,7 @@
 # AWS CI/CD and bootstrap
 
+The deployment migration starts with [CP01 baseline and ownership](deployment-checkpoints/cp01-baseline.md), including a fresh read-only runtime snapshot. This runbook describes the existing delivery path and its historical acceptance.
+
 ## Ownership and prerequisites
 
 CloudFormation stack `lynk-k3s-dev` retains ownership of the existing EC2/network/storage. Stack `lynk-cicd` owns GitHub OIDC roles, the `LynkDeploy` SSM document and the node artifact policy. No Terraform import occurs.

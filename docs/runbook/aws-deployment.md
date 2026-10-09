@@ -1,5 +1,7 @@
 # AWS deployment execution log
 
+This document includes historical snapshots and target ownership. For the current migration baseline, measured runtime, resource IDs and ownership, see [CP01](deployment-checkpoints/cp01-baseline.md). CloudFormation still owns AWS at CP01; Terraform ownership below is a future target.
+
 ## Configuration
 
 - AWS profile: `ngqkhai-dev`; region: `ap-southeast-1`. STS identity verified 2026-10-09 using local SSO credentials.
