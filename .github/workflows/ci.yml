@@ -2,11 +2,26 @@ name: CI & Docker Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'checkpoint/**']
   pull_request:
     branches: [main]
 
 jobs:
+  deployment-policy:
+    name: Deployment mode
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment mode (missing configuration pauses delivery)
+        id: mode
+        env:
+          LYNK_DEPLOY_MODE: ${{ vars.LYNK_DEPLOY_MODE || 'paused' }}
+        run: python3 scripts/cd/deployment-mode.py
+
   # ─── Lint & Test (runs on all branches) ──────────────────────────────────────
   lint-and-test:
     name: Lint & Test
@@ -33,7 +48,9 @@ jobs:
         run: npm run build
 
       - name: Deployment failure scenarios
-        run: python3 scripts/cd/test-deploy.py
+        run: |
+          python3 scripts/cd/test-deploy.py
+          python3 scripts/cd/test-deployment-mode.py
 
       - name: Run tests
         run: npm run test
@@ -61,15 +78,31 @@ jobs:
           pip install -r infra/ansible/requirements.txt cfn-lint==1.57.2
           ansible-galaxy collection install -r infra/ansible/requirements.yml
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
+          python3 scripts/cd/test-workflow-gates.py
           cfn-lint infra/aws/stack.yaml infra/aws/automation.yaml
           bash -n scripts/cd/deploy.sh scripts/bootstrap-aws-platform.sh
           curl -fsS https://get.helm.sh/helm-v3.21.2-linux-amd64.tar.gz -o /tmp/helm.tar.gz
           tar -xzf /tmp/helm.tar.gz -C /tmp
           /tmp/linux-amd64/helm lint infra/k8s/helm/lynk-services -f infra/k8s/helm/lynk-services/values-aws.yaml
 
+  gitops-checks:
+    name: GitOps manifest checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate declared Applications independently of delivery
+        run: |
+          pip install PyYAML==6.0.3
+          python3 scripts/cd/check-gitops.py
+
   build-and-push:
     name: Publish immutable images
-    needs: [lint-and-test, gateway-e2e, automation-checks]
+    needs: [lint-and-test, gateway-e2e, automation-checks, gitops-checks]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -151,7 +184,8 @@ jobs:
             release.sha256
 
   deploy:
-    needs: package-release
+    needs: [package-release, deployment-policy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.deployment-policy.outputs.mode == 'ssm'
     permissions:
       contents: read
       id-token: write

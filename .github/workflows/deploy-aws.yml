@@ -25,13 +25,33 @@ concurrency:
   group: lynk-aws-deployment
   cancel-in-progress: false
 jobs:
+  deployment-policy:
+    name: Deployment mode
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment mode
+        id: mode
+        env:
+          LYNK_DEPLOY_MODE: ${{ vars.LYNK_DEPLOY_MODE || 'paused' }}
+        run: python3 scripts/cd/deployment-mode.py
+
   deploy:
-    if: github.ref == 'refs/heads/main'
+    needs: deployment-policy
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.deployment-policy.outputs.mode == 'ssm'
     runs-on: ubuntu-latest
     environment: aws-demo
     timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
+      - name: Recheck mode before obtaining AWS credentials
+        env:
+          LYNK_DEPLOY_MODE: ${{ vars.LYNK_DEPLOY_MODE || 'paused' }}
+        run: python3 scripts/cd/deployment-mode.py --require-ssm
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}

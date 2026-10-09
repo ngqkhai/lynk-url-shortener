@@ -1,0 +1,64 @@
+{
+  "before": {
+    "name": "aws-demo",
+    "can_admins_bypass": true,
+    "protection_rules": [
+      {
+        "id": 68170443,
+        "node_id": "GA_kwDOUWiWo84EEDLL",
+        "type": "branch_policy"
+      }
+    ],
+    "deployment_branch_policy": {
+      "protected_branches": false,
+      "custom_branch_policies": true
+    }
+  },
+  "after": {
+    "name": "aws-demo",
+    "can_admins_bypass": false,
+    "protection_rules": [
+      {
+        "id": 68170443,
+        "node_id": "GA_kwDOUWiWo84EEDLL",
+        "type": "branch_policy"
+      },
+      {
+        "id": 68296241,
+        "node_id": "GA_kwDOUWiWo84EEh4x",
+        "type": "required_reviewers",
+        "prevent_self_review": false,
+        "reviewers": [
+          {
+            "type": "User",
+            "reviewer": {
+              "id": 92835482,
+              "login": "ngqkhai"
+            }
+          }
+        ]
+      }
+    ],
+    "deployment_branch_policy": {
+      "protected_branches": false,
+      "custom_branch_policies": true
+    }
+  },
+  "repository_variable": {
+    "LYNK_DEPLOY_MODE": "paused",
+    "previously_present": false
+  },
+  "preflight": {
+    "active_actions_runs": [],
+    "active_ssm_commands": []
+  },
+  "node_verification": {
+    "CommandId": "534dfd18-22e5-47b4-9250-ad311f07b4ff",
+    "Status": "Success",
+    "ResponseCode": 0,
+    "ExecutionStartDateTime": "2026-10-09T22:39:26.253Z",
+    "ExecutionEndDateTime": "2026-10-09T22:39:28.253Z",
+    "StandardOutputContent": "2026-10-09T22:39:26Z\ndeployment lock: idle\n[{\"name\": \"kafka-topics\", \"active\": 0, \"succeeded\": 1}]\n[{\"name\":\"lynk-services\",\"namespace\":\"lynk-aws\",\"revision\":\"6\",\"updated\":\"2026-10-08 20:38:17.355371017 +0000 UTC\",\"status\":\"deployed\",\"chart\":\"lynk-services-0.2.0\",\"app_version\":\"0.2.0\"}]\n{\"commit\": \"b6cc75a477df508eadda3b0f57d9a9994b304a11\", \"revision\": 6, \"at\": \"2026-10-08T20:39:41.778983+00:00\"}\n",
+    "StandardErrorContent": ""
+  }
+}
