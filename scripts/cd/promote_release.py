@@ -61,9 +61,15 @@ def main() -> int:
     parser.add_argument("--release-json", required=True, type=Path)
     parser.add_argument("--values", required=True, type=Path)
     parser.add_argument("--expected-sha", required=True)
+    parser.add_argument(
+        "--repository-root",
+        type=Path,
+        default=Path(__file__).resolve().parents[2],
+        help="checkout containing the allowlisted values file (defaults to this script's checkout)",
+    )
     args = parser.parse_args()
 
-    root = Path(__file__).resolve().parents[2]
+    root = args.repository_root.resolve()
     if args.values.resolve() != (root / ALLOWED_VALUES_PATH).resolve():
         parser.error(f"values path must be exactly {ALLOWED_VALUES_PATH}")
 

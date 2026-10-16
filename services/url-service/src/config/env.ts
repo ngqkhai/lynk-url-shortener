@@ -24,6 +24,12 @@ export const envSchema = z
     OUTBOX_IDLE_POLL_MS: z.coerce.number().int().min(1000).max(3600000).default(1000),
   })
   .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && env.RELEASE_SHA === 'local')
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RELEASE_SHA'],
+        message: 'Production requires a build-time release SHA',
+      });
     if (env.AUTH_REQUIRED && !env.JWT_PUBLIC_KEY_PATH)
       ctx.addIssue({ code: 'custom', message: 'AUTH_REQUIRED needs JWT_PUBLIC_KEY_PATH' });
     if (env.URL_EVENTS_ENABLED && !env.KAFKA_BROKERS)

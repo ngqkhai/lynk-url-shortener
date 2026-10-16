@@ -23,6 +23,12 @@ export const envSchema = z
     GATEWAY_CLIENT_CN: z.string().default('lynk-traefik'),
   })
   .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && env.RELEASE_SHA === 'local')
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RELEASE_SHA'],
+        message: 'Production requires a build-time release SHA',
+      });
     if (
       env.PHANTOM_ENABLED &&
       (!env.GATEWAY_CA_PATH || !env.GATEWAY_CERT_PATH || !env.GATEWAY_KEY_PATH)

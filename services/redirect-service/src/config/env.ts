@@ -29,6 +29,12 @@ export const envSchema = z
     UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(500),
   })
   .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && env.RELEASE_SHA === 'local')
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RELEASE_SHA'],
+        message: 'Production requires a build-time release SHA',
+      });
     if (env.URL_EVENTS_ENABLED && !env.KAFKA_BROKERS)
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

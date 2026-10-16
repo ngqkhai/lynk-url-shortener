@@ -1,0 +1,84 @@
+{
+  "checkpoint": "CP17",
+  "observed_at_utc": "2026-10-16T19:23:19Z",
+  "source_sha": "5615b583d72f95dcccf04ff05709c48cc11eab3b",
+  "workflow": {
+    "run_id": 38954573353,
+    "branch_ci_run_id": 38954155656,
+    "branch_ci_conclusion": "success",
+    "quality_jobs_conclusion": "success",
+    "image_build_inputs": [
+      "services/auth-service/Dockerfile",
+      "services/auth-service/src/config/env.ts",
+      "services/auth-service/src/server.ts",
+      "services/redirect-service/Dockerfile",
+      "services/redirect-service/src/config/env.ts",
+      "services/redirect-service/src/server.ts",
+      "services/url-service/Dockerfile",
+      "services/url-service/src/config/env.ts",
+      "services/url-service/src/server.ts"
+    ],
+    "image_builds": "success",
+    "anonymous_pull_verification": "success",
+    "release_artifact_sha256": "5819f07c3389517bf6f455ff7c5782f07b66f0d3fe367d2ec713ca5bdb28215e",
+    "release_manifest_source_sha": "5615b583d72f95dcccf04ff05709c48cc11eab3b",
+    "images": {
+      "url": "ghcr.io/ngqkhai/lynk-url-service@sha256:432a8494036a1727505153754d3f63ce082c30c527e9f4d873b14ccba400f159",
+      "redirect": "ghcr.io/ngqkhai/lynk-redirect-service@sha256:07932cff5538a5ff41e3f8ad2a4e72eae40ae606c9e199f707bd185a4de3570c",
+      "auth": "ghcr.io/ngqkhai/lynk-auth-service@sha256:488580b8e2200bb417c73068288b4560600e2301d2899872767610882c9c6abd"
+    }
+  },
+  "delivery": {
+    "mode": "argocd",
+    "legacy_ssm_writer": "disabled",
+    "aws_demo_branch_before_promotion": "87eb22600c545ac6952d472739b0091f5bd84281",
+    "promotion_job_status": "failed_before_write",
+    "promotion_failure": {
+      "category": "wrong_repository_root_for_allowlisted_path",
+      "cause": "promotion script compared detached worktree path against the main checkout root",
+      "guard_result": "fresh_source_and_allowlisted_changes_passed",
+      "aws_demo_advanced": false,
+      "fixed_by": "explicit repository-root argument and detached-worktree regression test"
+    },
+    "deployment_verified": false
+  },
+  "pre_release_observations": {
+    "argo_revision": "87eb22600c545ac6952d472739b0091f5bd84281",
+    "argo_sync": "Synced",
+    "argo_health": "Healthy",
+    "current_release_sha": "b6cc75a477df508eadda3b0f57d9a9994b304a11",
+    "current_postsync_smoke": "Succeeded",
+    "public_readiness_http_status": 200,
+    "aws_instance_type": "t3.medium",
+    "aws_instance_state": "running",
+    "cpu_credit_mode": "standard",
+    "kubernetes_node_count": 1,
+    "node_ready": true,
+    "allocatable_cpu": "2",
+    "allocatable_memory": "3924200Ki",
+    "node_cpu_usage": "500m",
+    "node_cpu_usage_percent": 25,
+    "node_memory_usage": "2281Mi",
+    "node_memory_usage_percent": 59,
+    "node_cpu_requests": "1100m",
+    "node_memory_requests": "1452Mi",
+    "node_cpu_limits": "4",
+    "node_memory_limits": "2538Mi",
+    "root_disk_free": "21334488Ki",
+    "k3s_service": "active",
+    "kafka_claim_data-kafka-0": "Bound",
+    "node_pressure": false,
+    "application_rollout_strategy": {
+      "maxSurge": 0,
+      "maxUnavailable": 1
+    }
+  },
+  "verification": {
+    "local_lint_format_build_test": "success; integration suites skipped locally because Docker is unavailable",
+    "branch_ci": "success",
+    "promotion_guard_tests": "success",
+    "chart_and_gitops_checks": "success",
+    "preflight_playbook_syntax": "success",
+    "deployment_outcome": "pending reviewer approval"
+  }
+}

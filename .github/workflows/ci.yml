@@ -309,7 +309,7 @@ jobs:
           cd /tmp/lynk-aws-demo
           DEPLOYMENT_BASE="$(git rev-parse HEAD)"
           python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --chart-sha "$CHART_SHA" --deployment-sha "$DEPLOYMENT_BASE"
-          python3 "$GITHUB_WORKSPACE/scripts/cd/promote_release.py" --release-json "$GITHUB_WORKSPACE/release-artifact/extracted/release.json" --values infra/k8s/helm/lynk-services/values-aws-demo.yaml --expected-sha "$SOURCE_SHA"
+          python3 "$GITHUB_WORKSPACE/scripts/cd/promote_release.py" --repository-root /tmp/lynk-aws-demo --release-json "$GITHUB_WORKSPACE/release-artifact/extracted/release.json" --values infra/k8s/helm/lynk-services/values-aws-demo.yaml --expected-sha "$SOURCE_SHA"
           git add -- infra/k8s/helm/lynk-services/values-aws-demo.yaml
           python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --chart-sha "$CHART_SHA" --deployment-sha "$DEPLOYMENT_BASE" --check-staged
           if git diff --cached --quiet; then

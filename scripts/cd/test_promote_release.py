@@ -2,7 +2,14 @@
 """Test release validation and the narrowly scoped values promotion."""
 
 import copy
+import json
+import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
+
+import yaml
 
 from promote_release import promoted_values, validate_release
 
@@ -59,6 +66,69 @@ class PromoteReleaseTests(unittest.TestCase):
         del bad["images"]["authService"]
         with self.assertRaisesRegex(ValueError, "exactly the three"):
             validate_release(bad, SHA)
+
+    def test_promotes_allowlisted_values_from_a_separate_git_worktree(self):
+        script = Path(__file__).with_name("promote_release.py").resolve()
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary)
+            values_path = repository / "infra/k8s/helm/lynk-services/values-aws-demo.yaml"
+            values_path.parent.mkdir(parents=True)
+            values_path.write_text(yaml.safe_dump(VALUES, sort_keys=False), encoding="utf-8")
+            release_path = repository / "release.json"
+            release_path.write_text(json.dumps(RELEASE), encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "--repository-root",
+                    str(repository),
+                    "--release-json",
+                    str(release_path),
+                    "--values",
+                    "infra/k8s/helm/lynk-services/values-aws-demo.yaml",
+                    "--expected-sha",
+                    SHA,
+                ],
+                cwd=repository,
+                capture_output=True,
+                check=True,
+                text=True,
+            )
+
+            promoted = yaml.safe_load(values_path.read_text(encoding="utf-8"))
+            self.assertEqual(promoted["global"]["imageTag"], SHA)
+            self.assertEqual(promoted["urlService"]["image"]["digest"], RELEASE["images"]["urlService"]["image"]["digest"])
+            self.assertIn(SHA, result.stdout)
+
+    def test_worktree_root_still_rejects_a_non_allowlisted_values_path(self):
+        script = Path(__file__).with_name("promote_release.py").resolve()
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary)
+            values_path = repository / "values.yaml"
+            values_path.write_text("{}\n", encoding="utf-8")
+            release_path = repository / "release.json"
+            release_path.write_text(json.dumps(RELEASE), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "--repository-root",
+                    str(repository),
+                    "--release-json",
+                    str(release_path),
+                    "--values",
+                    "values.yaml",
+                    "--expected-sha",
+                    SHA,
+                ],
+                cwd=repository,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("values path must be exactly", result.stderr)
 
 
 if __name__ == "__main__":
