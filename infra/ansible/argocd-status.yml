@@ -5,6 +5,14 @@
     status_script: '{{ playbook_dir }}/../../scripts/cd/argocd-status.sh'
     installed_script: /opt/lynk/bin/argocd-status.sh
   tasks:
+    - name: Install Python implementation before shell entrypoint
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../scripts/cd/argocd-status.py'
+        dest: /opt/lynk/bin/argocd-status.py
+        owner: root
+        group: root
+        mode: '0700'
+
     - name: Install the status checker with root-only execution rights
       ansible.builtin.copy:
         src: '{{ status_script }}'
@@ -13,6 +21,16 @@
         group: root
         mode: '0700'
       register: status_script_copy
+
+    - name: Compile the Python implementation on the target host
+      ansible.builtin.command:
+        argv:
+          [
+            /usr/bin/python3,
+            -c,
+            "import ast; ast.parse(open('/opt/lynk/bin/argocd-status.py').read())",
+          ]
+      changed_when: false
 
     - name: Validate shell syntax on the target host
       ansible.builtin.command:
@@ -24,12 +42,20 @@
         path: '{{ installed_script }}'
       register: status_script_stat
 
+    - name: Verify Python implementation ownership and restrictive mode
+      ansible.builtin.stat:
+        path: /opt/lynk/bin/argocd-status.py
+      register: implementation_stat
+
     - name: Require root-owned mode 0700 script
       ansible.builtin.assert:
         that:
           - status_script_stat.stat.pw_name == 'root'
           - status_script_stat.stat.gr_name == 'root'
           - status_script_stat.stat.mode == '0700'
+          - implementation_stat.stat.pw_name == 'root'
+          - implementation_stat.stat.gr_name == 'root'
+          - implementation_stat.stat.mode == '0700'
 
     - name: Report the installed script state
       ansible.builtin.debug:

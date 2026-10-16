@@ -10,12 +10,13 @@ ANSIBLE = ROOT / "infra/ansible"
 
 
 def main():
-    status_checker = (ROOT / "scripts/cd/argocd-status.sh").read_text()
-    assert 'kubectl logs "deployment/$name" -n lynk-aws --tail=100' in status_checker
-    assert "record.get('releaseSha') == expected" in status_checker
-    assert 'check_deployment url-service "$url_digest" "$release_sha"' in status_checker
+    status_checker = (ROOT / "scripts/cd/argocd-status.py").read_text()
+    assert 'time.monotonic() + 840' in status_checker
+    assert "record.get('releaseSha') == sha" in status_checker
     assert "--ignore-not-found" in status_checker
     assert "operation history does not record a successful PostSync smoke hook" in status_checker
+    wrapper = (ROOT / "scripts/cd/argocd-status.sh").read_text()
+    assert 'argocd-status.py' in wrapper and 'exec /usr/bin/python3' in wrapper
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     build = next(step for step in workflow["jobs"]["build-and-push"]["steps"] if step.get("id") == "image")
     assert build["with"]["build-args"] == "RELEASE_SHA=${{ github.sha }}"
@@ -24,6 +25,9 @@ def main():
         assert "ARG RELEASE_SHA=local" in dockerfile and "RELEASE_SHA=${RELEASE_SHA}" in dockerfile
 
     status = yaml.safe_load((ANSIBLE / "argocd-status.yml").read_text())[0]
+    implementation = next(task for task in status["tasks"] if task["name"].startswith("Install Python"))["ansible.builtin.copy"]
+    assert implementation["src"] == "{{ playbook_dir }}/../../scripts/cd/argocd-status.py"
+    assert implementation["owner"] == implementation["group"] == "root" and implementation["mode"] == "0700"
     status_source = status["vars"]["status_script"].replace("{{ playbook_dir }}", str(ANSIBLE))
     status_dest = status["vars"]["installed_script"]
     copy_task = next(task for task in status["tasks"] if task["name"].startswith("Install the status checker"))

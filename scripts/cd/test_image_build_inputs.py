@@ -48,6 +48,7 @@ class ImageBuildInputTests(unittest.TestCase):
             "package-lock.json",
             "tsconfig.json",
             ".dockerignore",
+            ".github/workflows/ci.yml",
         ):
             with self.subTest(path=path):
                 self.assertTrue(classify([path])["build_images"])

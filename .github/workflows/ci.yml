@@ -83,6 +83,8 @@ jobs:
           python3 scripts/cd/test_image_build_inputs.py
           python3 scripts/cd/test_promote_release.py
           python3 scripts/cd/test_promotion_guard.py
+          python3 scripts/cd/test_promotion_workflow.py
+          python3 scripts/cd/test_argocd_status.py
           python3 scripts/cd/test_wait_argocd_status.py
           python3 scripts/cd/test_argocd_status_automation.py
           python3 scripts/cd/test_compare_aws_demo_adoption.py
@@ -305,24 +307,24 @@ jobs:
           MAIN_SHA="$(git rev-parse origin/main)"
           python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA"
           git fetch origin aws-demo
-          git worktree add --detach /tmp/lynk-aws-demo origin/aws-demo
-          cd /tmp/lynk-aws-demo
+          git worktree add --detach "$RUNNER_TEMP/lynk-aws-demo" origin/aws-demo
+          cd "$RUNNER_TEMP/lynk-aws-demo"
           DEPLOYMENT_BASE="$(git rev-parse HEAD)"
           python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --chart-sha "$CHART_SHA" --deployment-sha "$DEPLOYMENT_BASE"
-          python3 "$GITHUB_WORKSPACE/scripts/cd/promote_release.py" --repository-root /tmp/lynk-aws-demo --release-json "$GITHUB_WORKSPACE/release-artifact/extracted/release.json" --values infra/k8s/helm/lynk-services/values-aws-demo.yaml --expected-sha "$SOURCE_SHA"
+          python3 "$GITHUB_WORKSPACE/scripts/cd/promote_release.py" --repository-root "$RUNNER_TEMP/lynk-aws-demo" --release-json "$GITHUB_WORKSPACE/release-artifact/extracted/release.json" --values infra/k8s/helm/lynk-services/values-aws-demo.yaml --expected-sha "$SOURCE_SHA"
           git add -- infra/k8s/helm/lynk-services/values-aws-demo.yaml
-          python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --chart-sha "$CHART_SHA" --deployment-sha "$DEPLOYMENT_BASE" --check-staged
           if git diff --cached --quiet; then
             echo "promotion_sha=$DEPLOYMENT_BASE" >> "$GITHUB_OUTPUT"
             echo "promotion_created=false" >> "$GITHUB_OUTPUT"
             echo "Promotion already contains these exact digests."
             exit 0
           fi
+          python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --chart-sha "$CHART_SHA" --deployment-sha "$DEPLOYMENT_BASE" --check-staged
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(gitops): promote aws-demo ${SOURCE_SHA}"
           PROMOTION_SHA="$(git rev-parse HEAD)"
           git fetch origin main
           CURRENT_MAIN="$(git rev-parse origin/main)"
-          python3 scripts/cd/promotion_guard.py --source-sha "$SOURCE_SHA" --main-sha "$CURRENT_MAIN"
+          python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$CURRENT_MAIN"
           git push origin HEAD:aws-demo
           echo "promotion_sha=$PROMOTION_SHA" >> "$GITHUB_OUTPUT"
           echo "promotion_created=true" >> "$GITHUB_OUTPUT"
@@ -347,8 +349,8 @@ jobs:
           SOURCE_SHA: ${{ github.sha }}
         run: |
           git fetch origin aws-demo main
-          git worktree add --detach /tmp/lynk-aws-demo-rollback origin/aws-demo
-          cd /tmp/lynk-aws-demo-rollback
+          git worktree add --detach "$RUNNER_TEMP/lynk-aws-demo-rollback" origin/aws-demo
+          cd "$RUNNER_TEMP/lynk-aws-demo-rollback"
           CURRENT_DEPLOYMENT="$(git rev-parse HEAD)"
           CURRENT_MAIN="$(git rev-parse origin/main)"
           if [ "$CURRENT_DEPLOYMENT" != "$PROMOTION_SHA" ] || [ "$CURRENT_MAIN" != "$SOURCE_SHA" ]; then
@@ -356,6 +358,6 @@ jobs:
             exit 1
           fi
           git checkout --detach "$PROMOTION_SHA"
-          git revert --no-edit "$PROMOTION_SHA"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' revert --no-edit "$PROMOTION_SHA"
           git push origin HEAD:aws-demo
           echo "Desired values were reverted; deployment verification remains failed." >&2

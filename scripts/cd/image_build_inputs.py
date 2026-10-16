@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 
 
-ROOT_INPUTS = {".dockerignore"}
+# The CI workflow supplies build arguments and release provenance.
+ROOT_INPUTS = {".dockerignore", ".github/workflows/ci.yml"}
 SERVICE_DIRS = ("services/url-service/", "services/redirect-service/", "services/auth-service/")
 SHARED_DIR = "packages/shared/"
 

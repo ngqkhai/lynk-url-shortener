@@ -81,7 +81,7 @@
     "promotion_guard_tests": "success",
     "chart_and_gitops_checks": "success",
     "preflight_playbook_syntax": "success",
-    "deployment_outcome": "pending main promotion/reviewer approval",
+    "deployment_outcome": "awaiting repaired branch CI and new main release",
     "latest_branch_ci_run": 38978920903,
     "fresh_readonly_preflight": "success; 12 tasks passed, 0 changed",
     "public_readiness": "HTTP 200"
@@ -93,5 +93,21 @@
     "e2e_gateway_kafka": "success",
     "lint_format_build_tests": "success",
     "terraform_helm_gitops": "success"
+  },
+  "additional_attempts": [
+    {
+      "run_id": 38979795793,
+      "source_sha": "eb959a86260bcfde2e1d011174563bd56b223854",
+      "quality_e2e_publish_package_anonymous_pull": "success",
+      "promotion": "failed_before_remote_push",
+      "cause": "final guard invoked relative to deployment worktree instead of source checkout",
+      "candidate_commit": "ec61281",
+      "aws_demo_advanced": false
+    }
+  ],
+  "repair_local_verification": {
+    "workflow_fixtures": "8 passed; actual YAML steps, local bare remotes, no production injection",
+    "status_fixtures": "11 passed; convergence, strict deadline, identities, hook history, large payload",
+    "live_release": "not yet verified"
   }
 }
