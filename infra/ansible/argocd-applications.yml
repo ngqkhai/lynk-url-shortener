@@ -1,0 +1,174 @@
+- name: Register aws-demo desired state in Argo CD without syncing workloads
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    gitops_source_dir: '{{ playbook_dir }}/../../gitops'
+    snapshot_source: '{{ playbook_dir }}/../../scripts/cd/snapshot-aws-demo-workloads.py'
+    manifest_dir: /opt/lynk/argocd-applications
+    chart_revision: 87eb22600c545ac6952d472739b0091f5bd84281
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Verify the K3s version against CP13 preflight
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', version, -o, json]
+      register: aws_demo_k8s_version
+      changed_when: false
+
+    - name: Require the verified K3s target
+      ansible.builtin.assert:
+        that:
+          - "'v1.37.1+k3s1' in aws_demo_k8s_version.stdout"
+
+    - name: Verify the existing AppProject and Application are absent
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, '{{ item.kind }}', aws-demo, -n, argocd, -o, name]
+      loop:
+        - { kind: appprojects.argoproj.io }
+        - { kind: applications.argoproj.io }
+      register: aws_demo_existing_crs
+      changed_when: false
+      failed_when: false
+
+    - name: Refuse to replace pre-existing GitOps ownership resources
+      ansible.builtin.assert:
+        that:
+          - item.rc == 1
+          - "'NotFound' in item.stderr"
+        fail_msg: Refusing to overwrite an existing aws-demo Project/Application or hide an API access error.
+      loop: '{{ aws_demo_existing_crs.results }}'
+
+    - name: Create the root-owned temporary manifest workspace
+      ansible.builtin.file:
+        path: '{{ manifest_dir }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy the reviewed GitOps Project and Application files
+      ansible.builtin.copy:
+        src: '{{ gitops_source_dir }}/{{ item }}'
+        dest: '{{ manifest_dir }}/{{ item }}'
+        owner: root
+        group: root
+        mode: '0644'
+      loop:
+        - aws-demo-project.yaml
+        - aws-demo-application.yaml
+
+    - name: Install the secret-free workload snapshot helper
+      ansible.builtin.copy:
+        src: '{{ snapshot_source }}'
+        dest: '{{ manifest_dir }}/snapshot-aws-demo-workloads.py'
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Server-side dry-run only the AppProject and Application CRs
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - apply
+          - --server-side
+          - --dry-run=server
+          - -f
+          - '{{ manifest_dir }}/aws-demo-project.yaml'
+          - -f
+          - '{{ manifest_dir }}/aws-demo-application.yaml'
+      changed_when: false
+
+    - name: Capture workload identities before registering the Application
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ manifest_dir }}/snapshot-aws-demo-workloads.py']
+      register: aws_demo_workloads_before
+      changed_when: false
+
+    - name: Apply only the AppProject and Application CRs
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - apply
+          - --server-side
+          - -f
+          - '{{ manifest_dir }}/aws-demo-project.yaml'
+          - -f
+          - '{{ manifest_dir }}/aws-demo-application.yaml'
+      register: aws_demo_cr_apply
+      changed_when: "'created' in aws_demo_cr_apply.stdout or 'configured' in aws_demo_cr_apply.stdout"
+
+    - name: Wait until Argo has compared the pinned source
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - get
+          - applications.argoproj.io
+          - aws-demo
+          - -n
+          - argocd
+          - -o
+          - 'jsonpath={.status.sync.status} {.status.health.status}'
+      register: aws_demo_app_status
+      changed_when: false
+      retries: 30
+      delay: 4
+      until: "'OutOfSync' in aws_demo_app_status.stdout or 'Synced' in aws_demo_app_status.stdout"
+
+    - name: Read the Application spec and computed status
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, applications.argoproj.io, aws-demo, -n, argocd, -o, json]
+      register: aws_demo_app_json
+      changed_when: false
+
+    - name: Require manual sync, disabled prune and pinned source
+      ansible.builtin.assert:
+        that:
+          - (aws_demo_app_json.stdout | from_json).spec.project == 'aws-demo'
+          - (aws_demo_app_json.stdout | from_json).spec.source.targetRevision == chart_revision
+          - (aws_demo_app_json.stdout | from_json).spec.destination.namespace == 'lynk-aws'
+          - (aws_demo_app_json.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (aws_demo_app_json.stdout | from_json).spec.syncPolicy.prune is not defined or not (aws_demo_app_json.stdout | from_json).spec.syncPolicy.prune
+          - (aws_demo_app_json.stdout | from_json).status.sync.status in ['OutOfSync', 'Synced']
+
+    - name: Confirm that sync hooks did not run
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - get
+          - jobs
+          - -n
+          - lynk-aws
+          - -o
+          - 'jsonpath={range .items[*]}{.metadata.name},{end}'
+      register: aws_demo_jobs_after
+      changed_when: false
+
+    - name: Require no migration or PostSync Job execution
+      ansible.builtin.assert:
+        that:
+          - "'url-service-migrate' not in aws_demo_jobs_after.stdout"
+          - "'redirect-service-migrate' not in aws_demo_jobs_after.stdout"
+          - "'auth-service-migrate' not in aws_demo_jobs_after.stdout"
+          - "'lynk-postsync-smoke' not in aws_demo_jobs_after.stdout"
+
+    - name: Capture workload identities after Argo comparison
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ manifest_dir }}/snapshot-aws-demo-workloads.py']
+      register: aws_demo_workloads_after
+      changed_when: false
+
+    - name: Confirm Application registration changed no live workload identity or spec
+      ansible.builtin.assert:
+        that:
+          - aws_demo_workloads_before.stdout == aws_demo_workloads_after.stdout
+        fail_msg: Workload resources changed while registering the manual-sync Application; investigate before continuing.
+
+    - name: Report comparison status without secret data
+      ansible.builtin.debug:
+        msg:
+          application: aws-demo
+          sync_health: '{{ aws_demo_app_status.stdout }}'
+          hooks_executed: false
+          workloads_mutated: false

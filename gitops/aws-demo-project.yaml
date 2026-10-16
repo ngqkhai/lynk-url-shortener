@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: aws-demo
+  namespace: argocd
+spec:
+  description: Restricted project for the Lynk aws-demo environment.
+  sourceRepos:
+    - https://github.com/ngqkhai/lynk-url-shortener.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: lynk-aws
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: batch
+      kind: Job
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: traefik.io
+      kind: Middleware

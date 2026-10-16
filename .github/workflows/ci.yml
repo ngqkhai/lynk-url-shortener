@@ -82,6 +82,7 @@ jobs:
           python3 scripts/backups/test-lynk-db-backup.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd.yml --syntax-check
+          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-applications.yml --syntax-check
           python3 scripts/cd/test-workflow-gates.py
           python3 scripts/secrets/vault-bundle.py check
           python3 scripts/secrets/test-vault-bundle.py
@@ -110,6 +111,7 @@ jobs:
           pip install PyYAML==6.0.3
           python3 scripts/cd/check-gitops.py
           python3 scripts/cd/test-argocd-overlay.py
+          python3 scripts/cd/test-gitops-aws-demo.py
 
   terraform-checks:
     name: Terraform format and validation

@@ -1,0 +1,134 @@
+{
+  "checkpoint": "CP13",
+  "captured_at": "2026-10-16T16:47:00Z",
+  "branch": "checkpoint/cp13-gitops-applications",
+  "target": {
+    "name": "lynk-k3s-dev",
+    "region": "ap-southeast-1",
+    "cluster_version": "v1.37.1+k3s1",
+    "namespace": "lynk-aws"
+  },
+  "preflight": {
+    "helm_release": {
+      "name": "lynk-services",
+      "chart": "lynk-services-0.2.0",
+      "revision": 6,
+      "status": "deployed"
+    },
+    "services": {
+      "url-service": {
+        "replicas": 1,
+        "ready": 1,
+        "image": "ghcr.io/ngqkhai/lynk-url-service@sha256:1d916376cf6afce9c98e6a4517e2dfb2356b285c1cd2d02c62e55a487e70c978"
+      },
+      "redirect-service": {
+        "replicas": 1,
+        "ready": 1,
+        "image": "ghcr.io/ngqkhai/lynk-redirect-service@sha256:8bec2f41a7431722f156d6447bd13c9dfe5d54fedd771566b531661d1ee11e82"
+      },
+      "auth-service": {
+        "replicas": 1,
+        "ready": 1,
+        "image": "ghcr.io/ngqkhai/lynk-auth-service@sha256:f4e2964249d4c3679807ae5d315b34831e0bbdf7970119da830b74f42f8fd65c"
+      }
+    },
+    "legacy_redis": {
+      "deployment": "lynk-redis",
+      "image": "redis:8-alpine",
+      "labels_present": false,
+      "owner_references": [],
+      "apply_method_annotation_present": true,
+      "included_in_cp13_application": false
+    },
+    "kafka_pvc": {
+      "name": "data-kafka-0",
+      "phase": "Bound",
+      "storage_class": "local-path"
+    },
+    "argocd_application_count": 0,
+    "service_secret_data_read": false
+  },
+  "source": {
+    "repository": "https://github.com/ngqkhai/lynk-url-shortener.git",
+    "chart_path": "infra/k8s/helm/lynk-services",
+    "chart_version": "0.3.0",
+    "app_version": "0.2.0",
+    "pinned_chart_commit": "87eb22600c545ac6952d472739b0091f5bd84281",
+    "source_commit_pushed": true,
+    "image_digests_seeded_from_live_runtime": true,
+    "migration_hook": "PreSync",
+    "smoke_hook": "PostSync",
+    "smoke_checks": [
+      "http://url-service:3001/health/ready",
+      "http://redirect-service:3002/health/ready",
+      "http://auth-service:3004/health/ready"
+    ]
+  },
+  "initial_application_policy": {
+    "project": "aws-demo",
+    "destination_namespace": "lynk-aws",
+    "automated_sync": false,
+    "self_heal": false,
+    "prune": false,
+    "cluster_resource_allowlist": [],
+    "workload_sync_requested": false
+  },
+  "verification": {
+    "chart_lint_general_values": "passed after defaulting optional postSyncSmoke map",
+    "chart_lint_aws_demo_values": "passed",
+    "chart_rendered_objects": 16,
+    "pre_sync_migrations": 3,
+    "post_sync_smoke_jobs": 1,
+    "gitops_contract_tests": "passed locally",
+    "application_server_side_dry_run": "passed; AppProject and Application only",
+    "application_status": {
+      "sync": "OutOfSync",
+      "health": "Progressing",
+      "revision": "87eb22600c545ac6952d472739b0091f5bd84281",
+      "rendered_resources": 12,
+      "conditions": [],
+      "out_of_sync_resources": [
+        "Service/auth-service",
+        "Service/auth-service-gateway",
+        "Service/redirect-service",
+        "Service/url-service",
+        "Deployment/auth-service",
+        "Deployment/redirect-service",
+        "Deployment/url-service",
+        "Ingress/lynk-auth-me",
+        "Ingress/lynk-auth-public",
+        "Ingress/lynk-public",
+        "Ingress/lynk-urls",
+        "Middleware/phantom-token"
+      ],
+      "interpretation": "Comparison succeeded with no reported conditions; resources remain unadopted and no sync was requested. OutOfSync/Progressing is expected before adoption and is not a healthy deployment claim."
+    },
+    "workload_snapshot_before_sha256": null,
+    "workload_snapshot_after_sha256": null,
+    "workload_snapshot_equal": true,
+    "workload_snapshot_evidence": "The Ansible playbook compared the complete secret-free snapshot JSON strings and asserted exact equality; digests were not persisted by that run.",
+    "migration_jobs_executed": false,
+    "post_sync_job_executed": false,
+    "deployment_gate": "paused; reviewer ngqkhai; verified before main push"
+  },
+  "ci_failures_and_resolutions": [
+    {
+      "run": "38933825131",
+      "symptom": "Infrastructure/Helm CI failed lint with nil pointer on global.postSyncSmoke.enabled",
+      "cause": "general values-aws profile omits the opt-in smoke settings map",
+      "resolution": "default missing map to empty and default timeout/attempts; re-tested with both base AWS and aws-demo values"
+    },
+    {
+      "run": "38934121125",
+      "head_sha": "87eb22600c545ac6952d472739b0091f5bd84281",
+      "conclusion": "success",
+      "note": "All source-commit CI jobs passed; package-release, immutable image publication, and deploy were skipped because the deployment gate is paused."
+    }
+  ],
+  "limitations": [
+    "PreSync migrations and PostSync readiness smoke have only been rendered; they must not run until an operator explicitly syncs in a later checkpoint.",
+    "Redis is deliberately outside this Application because the live direct-kubectl resource differs from the unused Bitnami staging Application.",
+    "A healthy or OutOfSync Application status is comparison evidence, not workload deployment evidence.",
+    "All 12 rendered resources are OutOfSync before adoption; detailed manifest diffs and ownership transfer are deferred to CP16. No workload sync was requested in CP13."
+  ]
+}
