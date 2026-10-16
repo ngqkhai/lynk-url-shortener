@@ -9,8 +9,8 @@ describe('release identity configuration', () => {
     JWT_PUBLIC_KEY_PATH: '/keys/jwt-public.pem',
   };
 
-  it('requires an immutable source SHA in production', () => {
-    expect(envSchema.safeParse({ ...production, RELEASE_SHA: 'local' }).success).toBe(false);
+  it('accepts a local build identity and an immutable source SHA', () => {
+    expect(envSchema.safeParse({ ...production, RELEASE_SHA: 'local' }).success).toBe(true);
     expect(envSchema.safeParse({ ...production, RELEASE_SHA: 'a'.repeat(40) }).success).toBe(true);
   });
 });

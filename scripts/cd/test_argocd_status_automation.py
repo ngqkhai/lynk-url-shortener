@@ -14,6 +14,8 @@ def main():
     assert 'kubectl logs "deployment/$name" -n lynk-aws --tail=100' in status_checker
     assert "record.get('releaseSha') == expected" in status_checker
     assert 'check_deployment url-service "$url_digest" "$release_sha"' in status_checker
+    assert "--ignore-not-found" in status_checker
+    assert "operation history does not record a successful PostSync smoke hook" in status_checker
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     build = next(step for step in workflow["jobs"]["build-and-push"]["steps"] if step.get("id") == "image")
     assert build["with"]["build-args"] == "RELEASE_SHA=${{ github.sha }}"

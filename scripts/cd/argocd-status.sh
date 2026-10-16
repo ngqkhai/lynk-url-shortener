@@ -79,9 +79,10 @@ PY
 check_deployment url-service "$url_digest" "$release_sha"
 check_deployment redirect-service "$redirect_digest" "$release_sha"
 check_deployment auth-service "$auth_digest" "$release_sha"
-smoke="$($kubectl get job lynk-postsync-smoke -n lynk-aws -o json)"
-smoke_pods="$($kubectl get pods -n lynk-aws -l app=lynk-postsync-smoke -o json)"
-python3 - "$smoke" "$smoke_pods" "$url_digest" <<'PY'
+smoke="$($kubectl get job lynk-postsync-smoke -n lynk-aws -o json --ignore-not-found)"
+if [[ -n "$smoke" ]]; then
+  smoke_pods="$($kubectl get pods -n lynk-aws -l app=lynk-postsync-smoke -o json)"
+  python3 - "$smoke" "$smoke_pods" "$url_digest" <<'PY'
 import json, sys
 job = json.loads(sys.argv[1])
 pods = json.loads(sys.argv[2])
@@ -96,4 +97,21 @@ if not any(any(status.get('name') == containers[0]['name'] and status.get('image
                for status in pod.get('status', {}).get('containerStatuses', [])) for pod in completed):
     raise SystemExit('PostSync smoke Pod did not complete with the expected release image')
 PY
+else
+  python3 - "$app" "$values_revision" "$url_digest" <<'PY'
+import json, sys
+app = json.loads(sys.argv[1])
+expected_revision, expected_digest = sys.argv[2:]
+operation = app.get('status', {}).get('operationState', {})
+result = operation.get('syncResult', {})
+if operation.get('phase') != 'Succeeded' or result.get('revision') != expected_revision:
+    raise SystemExit('Argo has no successful operation for the expected values revision')
+smokes = [resource for resource in result.get('resources', [])
+          if resource.get('name') == 'lynk-postsync-smoke' and resource.get('hookType') == 'PostSync']
+if len(smokes) != 1 or smokes[0].get('hookPhase') != 'Succeeded':
+    raise SystemExit('Argo operation history does not record a successful PostSync smoke hook')
+if not any(image.endswith('@' + expected_digest) for image in smokes[0].get('images', [])):
+    raise SystemExit('Recorded PostSync smoke hook does not use the expected release image')
+PY
+fi
 printf '{"values_revision":"%s","release_sha":"%s","status":"Healthy","smoke":"Succeeded"}\n' "$values_revision" "$release_sha"

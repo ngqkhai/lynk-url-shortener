@@ -48,6 +48,7 @@
     "argo_health": "Healthy",
     "current_release_sha": "b6cc75a477df508eadda3b0f57d9a9994b304a11",
     "current_postsync_smoke": "Succeeded",
+    "current_postsync_smoke_evidence": "Argo operation history; Kubernetes Job object had expired",
     "public_readiness_http_status": 200,
     "aws_instance_type": "t3.medium",
     "aws_instance_state": "running",

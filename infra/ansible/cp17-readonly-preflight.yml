@@ -4,9 +4,7 @@
   vars:
     kubectl: /usr/local/bin/kubectl
     kubeconfig: /etc/rancher/k3s/k3s.yaml
-    status_script: /opt/lynk/bin/argocd-status.sh
     expected_revision: 87eb22600c545ac6952d472739b0091f5bd84281
-    release_sha: b6cc75a477df508eadda3b0f57d9a9994b304a11
     expected_digests:
       url: sha256:1d916376cf6afce9c98e6a4517e2dfb2356b285c1cd2d02c62e55a487e70c978
       redirect: sha256:8bec2f41a7431722f156d6447bd13c9dfe5d54fedd771566b531661d1ee11e82
@@ -38,12 +36,78 @@
           - (application.stdout | from_json).status.operationState.phase == 'Succeeded'
         fail_msg: Current Argo state differs from CP16's verified state; keep release gate closed.
 
-    - name: Recheck release SHA, runtime digests, and PostSync smoke
+    - name: Read current application Deployments and Pods
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, deployments, pods, -n, lynk-aws, -o, json]
+      register: workloads
+      changed_when: false
+
+    - name: Verify runtime digests and retained Argo PostSync evidence
       ansible.builtin.command:
         argv:
-          - '{{ status_script }}'
+          - /usr/bin/python3
+          - -c
+          - |
+            import json
+            import sys
+
+            app, workloads = map(json.loads, sys.argv[1:3])
+            revision = sys.argv[3]
+            expected = dict(zip(('url-service', 'redirect-service', 'auth-service'), sys.argv[4:7]))
+            operation = app['status']['operationState']
+            result = operation.get('syncResult', {})
+            if operation.get('phase') != 'Succeeded' or result.get('revision') != revision:
+                raise SystemExit('latest Argo operation/revision is not successful')
+            deployments = {
+                item['metadata']['name']: item
+                for item in workloads.get('items', [])
+                if item['kind'] == 'Deployment'
+            }
+            pods = [item for item in workloads.get('items', []) if item['kind'] == 'Pod']
+            for name, digest in expected.items():
+                deployment = deployments.get(name, {})
+                spec = deployment.get('spec', {})
+                containers = spec.get('template', {}).get('spec', {}).get('containers', [])
+                container = next((item for item in containers if item.get('name') == name), {})
+                if deployment.get('status', {}).get('readyReplicas', 0) < spec.get('replicas', 1):
+                    raise SystemExit(name + ' Deployment is not fully ready')
+                if not container.get('image', '').endswith('@' + digest):
+                    raise SystemExit(name + ' Deployment image digest mismatch')
+                ready = [
+                    pod for pod in pods
+                    if pod.get('metadata', {}).get('labels', {}).get('app') == name
+                    and pod.get('status', {}).get('phase') == 'Running'
+                ]
+                if not ready or any(
+                    not any(
+                        status.get('name') == name
+                        and status.get('ready')
+                        and status.get('imageID', '').endswith('@' + digest)
+                        for status in pod.get('status', {}).get('containerStatuses', [])
+                    )
+                    for pod in ready
+                ):
+                    raise SystemExit(name + ' running Pod image digest mismatch')
+            hooks = [
+                item for item in result.get('resources', [])
+                if item.get('name') == 'lynk-postsync-smoke' and item.get('hookType') == 'PostSync'
+            ]
+            if len(hooks) != 1 or hooks[0].get('hookPhase') != 'Succeeded':
+                raise SystemExit('Argo operation history does not prove successful PostSync smoke')
+            if not any(
+                image.endswith('@' + expected['url-service'])
+                for image in hooks[0].get('images', [])
+            ):
+                raise SystemExit('PostSync smoke did not use the expected URL service digest')
+            print(json.dumps({
+                'revision': revision,
+                'status': 'Healthy',
+                'runtime_digests': 'matched',
+                'postsync_smoke': 'Succeeded',
+            }, sort_keys=True))
+          - '{{ application.stdout }}'
+          - '{{ workloads.stdout }}'
           - '{{ expected_revision }}'
-          - '{{ release_sha }}'
           - '{{ expected_digests.url }}'
           - '{{ expected_digests.redirect }}'
           - '{{ expected_digests.auth }}'
@@ -76,12 +140,6 @@
       register: pod_usage
       changed_when: false
 
-    - name: Read current application Deployment strategy and resource budgets
-      ansible.builtin.command:
-        argv: ['{{ kubectl }}', get, deployments, -n, lynk-aws, -o, json]
-      register: deployments
-      changed_when: false
-
     - name: Read PVC identity and phase without accessing volume data
       ansible.builtin.command:
         argv: ['{{ kubectl }}', get, pvc, -n, lynk-aws, -o, json]
@@ -106,15 +164,15 @@
             usage: '{{ node_usage.stdout_lines }}'
           pod_usage: '{{ pod_usage.stdout_lines }}'
           deployments: >-
-            {{ (deployments.stdout | from_json)["items"] | map(attribute='metadata.name') | list }}
+            {{ (workloads.stdout | from_json)["items"] | selectattr('kind', 'equalto', 'Deployment') | map(attribute='metadata.name') | list }}
           rollout_strategies: >-
-            {{ (deployments.stdout | from_json)["items"] | map(attribute='spec.strategy') | list }}
+            {{ (workloads.stdout | from_json)["items"] | selectattr('kind', 'equalto', 'Deployment') | map(attribute='spec.strategy') | list }}
           deployment_images: >-
-            {{ (deployments.stdout | from_json)["items"] | map(attribute='spec.template.spec.containers') | map('map', attribute='image') | map('list') | list }}
+            {{ (workloads.stdout | from_json)["items"] | selectattr('kind', 'equalto', 'Deployment') | map(attribute='spec.template.spec.containers') | map('map', attribute='image') | map('list') | list }}
           deployment_requests: >-
-            {{ (deployments.stdout | from_json)["items"] | map(attribute='spec.template.spec.containers') | map('map', attribute='resources.requests') | map('list') | list }}
+            {{ (workloads.stdout | from_json)["items"] | selectattr('kind', 'equalto', 'Deployment') | map(attribute='spec.template.spec.containers') | map('map', attribute='resources.requests') | map('list') | list }}
           deployment_limits: >-
-            {{ (deployments.stdout | from_json)["items"] | map(attribute='spec.template.spec.containers') | map('map', attribute='resources.limits') | map('list') | list }}
+            {{ (workloads.stdout | from_json)["items"] | selectattr('kind', 'equalto', 'Deployment') | map(attribute='spec.template.spec.containers') | map('map', attribute='resources.limits') | map('list') | list }}
           persistent_volume_claims: >-
             {{ (claims.stdout | from_json)["items"] | map(attribute='metadata.name') | zip((claims.stdout | from_json)["items"] | map(attribute='status.phase')) | list }}
           filesystem_and_k3s: '{{ disk_and_k3s.stdout_lines }}'

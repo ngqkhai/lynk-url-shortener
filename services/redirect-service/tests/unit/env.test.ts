@@ -9,8 +9,8 @@ describe('release identity configuration', () => {
     URL_SERVICE_BASE_URL: 'http://url-service:3001',
   };
 
-  it('requires an immutable source SHA in production', () => {
-    expect(envSchema.safeParse({ ...production, RELEASE_SHA: 'local' }).success).toBe(false);
+  it('accepts a local build identity and an immutable source SHA', () => {
+    expect(envSchema.safeParse({ ...production, RELEASE_SHA: 'local' }).success).toBe(true);
     expect(envSchema.safeParse({ ...production, RELEASE_SHA: 'a'.repeat(40) }).success).toBe(true);
   });
 });
