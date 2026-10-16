@@ -45,6 +45,19 @@
     "workload_sync_requested": false
   },
   "verification": {
+    "implementation_commit": "9da22efbcdf4f7361ca3f3e2c2cb2d94b8c2038a",
+    "checkpoint_branch_ci": {
+      "run_id": "38945208195",
+      "conclusion": "success",
+      "publish_package_deploy_promote": "skipped"
+    },
+    "main_integration": {
+      "main_sha": "9da22efbcdf4f7361ca3f3e2c2cb2d94b8c2038a",
+      "ci_run_id": "38945573726",
+      "conclusion": "success",
+      "image_inputs": false,
+      "publish_package_deploy_promote": "skipped"
+    },
     "plan_written_before_implementation": true,
     "local_implementation": "promotion guard/status plumbing and dedicated-branch topology implemented; promotion execution remains intentionally paused",
     "python_tests": {
