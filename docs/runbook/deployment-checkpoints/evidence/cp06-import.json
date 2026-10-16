@@ -1,0 +1,140 @@
+{
+  "checkpoint": "CP06",
+  "status": "runtime_verified_pending_branch_ci",
+  "verified_at": "2026-10-16T09:28:29.051436+00:00",
+  "base_commit": "906c6e63fd302aebe5072af42aa470d5f03a9db7",
+  "previous_branch_ci": {
+    "id": 38879819048,
+    "conclusion": "success"
+  },
+  "initial_environment_state": "No object under environments/aws-demo prefix before import",
+  "retention_review": "cp06-retain-review.json",
+  "imports": 25,
+  "creates": 0,
+  "updates": 0,
+  "deletes": 0,
+  "post_import_plan_exit_code": 0,
+  "state": {
+    "key": "environments/aws-demo/terraform.tfstate",
+    "serial": 1,
+    "lineage": "0acebaa1-8ca5-702d-5fad-312d3cc4e956",
+    "protected_backup": ".recovery/cp06-environment-after-import.tfstate",
+    "bindings": {
+      "aws_vpc.network": {
+        "state_id": "vpc-09c4afddd4dfc6502",
+        "import_identity_verified": true
+      },
+      "aws_internet_gateway.public": {
+        "state_id": "igw-0bb523dabd532a6e9",
+        "import_identity_verified": true
+      },
+      "aws_subnet.public": {
+        "state_id": "subnet-00400b58035a53c92",
+        "import_identity_verified": true
+      },
+      "aws_route_table.public": {
+        "state_id": "rtb-0a44522bc2a4690b5",
+        "import_identity_verified": true
+      },
+      "aws_route_table_association.public": {
+        "state_id": "rtbassoc-057406c3a2418d297",
+        "import_identity_verified": true
+      },
+      "aws_security_group.node": {
+        "state_id": "sg-0548386ccc4cb294f",
+        "import_identity_verified": true
+      },
+      "aws_instance.node": {
+        "state_id": "i-03bb7dcb94ec8bd21",
+        "import_identity_verified": true
+      },
+      "aws_iam_role.node": {
+        "state_id": "lynk-k3s-dev-InstanceRole-kGsx9JYHkqVh",
+        "import_identity_verified": true
+      },
+      "aws_iam_instance_profile.node": {
+        "state_id": "lynk-k3s-dev-InstanceProfile-laelrId0FDdg",
+        "import_identity_verified": true
+      },
+      "aws_eip_association.node": {
+        "state_id": "eipassoc-0d9ab4bf56ed84463",
+        "import_identity_verified": true
+      },
+      "aws_route.default": {
+        "state_id": "r-rtb-0a44522bc2a4690b51080289494",
+        "import_identity_verified": true
+      },
+      "aws_eip.node": {
+        "state_id": "eipalloc-0f88a7eca6c3660d1",
+        "import_identity_verified": true
+      },
+      "aws_s3_bucket.artifacts": {
+        "state_id": "lynk-k3s-dev-artifactbucket-acumvnfx55sd",
+        "import_identity_verified": true
+      },
+      "aws_s3_bucket_public_access_block.artifacts": {
+        "state_id": "lynk-k3s-dev-artifactbucket-acumvnfx55sd",
+        "import_identity_verified": true
+      },
+      "aws_s3_bucket_server_side_encryption_configuration.artifacts": {
+        "state_id": "lynk-k3s-dev-artifactbucket-acumvnfx55sd",
+        "import_identity_verified": true
+      },
+      "aws_s3_bucket_lifecycle_configuration.artifacts": {
+        "state_id": "lynk-k3s-dev-artifactbucket-acumvnfx55sd",
+        "import_identity_verified": true
+      },
+      "aws_s3_bucket_ownership_controls.artifacts": {
+        "state_id": "lynk-k3s-dev-artifactbucket-acumvnfx55sd",
+        "import_identity_verified": true
+      },
+      "aws_iam_role.deploy": {
+        "state_id": "lynk-github-deploy",
+        "import_identity_verified": true
+      },
+      "aws_iam_role.bootstrap": {
+        "state_id": "lynk-github-bootstrap",
+        "import_identity_verified": true
+      },
+      "aws_iam_openid_connect_provider.github": {
+        "state_id": "arn:aws:iam::231136241975:oidc-provider/token.actions.githubusercontent.com",
+        "import_identity_verified": true
+      },
+      "aws_ssm_document.deploy": {
+        "state_id": "LynkDeploy",
+        "import_identity_verified": true
+      },
+      "aws_iam_role_policy.node_artifacts": {
+        "state_id": "lynk-k3s-dev-InstanceRole-kGsx9JYHkqVh:lynk-release-artifacts",
+        "import_identity_verified": true
+      },
+      "aws_iam_role_policy.deploy": {
+        "state_id": "lynk-github-deploy:release-deploy",
+        "import_identity_verified": true
+      },
+      "aws_iam_role_policy.bootstrap": {
+        "state_id": "lynk-github-bootstrap:bootstrap-ssm",
+        "import_identity_verified": true
+      },
+      "aws_iam_role_policy_attachment.node_ssm": {
+        "state_id": "lynk-k3s-dev-InstanceRole-kGsx9JYHkqVh/arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+        "import_identity_verified": true
+      }
+    }
+  },
+  "ssm_document_version_unchanged": "2",
+  "root_volume_unchanged": "vol-09662942cb90152da",
+  "stacks_still_owned_by_cloudformation": true,
+  "ownership_transition": "Temporary overlap; no resource-changing applies until CP07 release",
+  "migration_guard_tests": {
+    "passed": 5
+  },
+  "ci": "Pending checkpoint branch push",
+  "public_readiness": {
+    "status": "ready",
+    "service": "url-service",
+    "checks": {
+      "database": "ok"
+    }
+  }
+}

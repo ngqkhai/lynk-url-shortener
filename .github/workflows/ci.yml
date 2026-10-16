@@ -115,6 +115,7 @@ jobs:
           terraform_wrapper: false
       - name: Validate roots without AWS credentials or backend access
         run: |
+          python3 scripts/terraform/test-migration-guards.py
           terraform fmt -check -recursive infra/terraform
           for root in infra/terraform/bootstrap infra/terraform/environments/aws-demo; do
             terraform -chdir="$root" init -backend=false -input=false -lockfile=readonly

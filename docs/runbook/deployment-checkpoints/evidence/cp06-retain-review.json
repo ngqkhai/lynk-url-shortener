@@ -1,0 +1,168 @@
+{
+  "reviewed_at": "2026-10-16T09:26:51.756427+00:00",
+  "stacks": {
+    "lynk-k3s-dev": {
+      "change_set_id": "arn:aws:cloudformation:ap-southeast-1:231136241975:changeSet/cp06-retain-20261016T092516Z/eae27016-a941-40c6-9505-e1d4645b5a33",
+      "stack_id": "arn:aws:cloudformation:ap-southeast-1:231136241975:stack/lynk-k3s-dev/ffe15400-c33b-11f1-a25d-067b0c3a1039",
+      "resources": 14,
+      "original_sha256": "533ceed393e06e88af6e9192f354666c42a2b39b9e96fc0eef39aa9de39b97e2",
+      "candidate_sha256": "2aca5f8795f326a274da0b7ea3dd8236ac3a9c346f31c4c5d1c48529798fbbed",
+      "only_retention_lines_added": true,
+      "reviewed_before_execute": true,
+      "properties_unchanged": true,
+      "changes": [
+        {
+          "LogicalResourceId": "ArtifactBucket",
+          "PhysicalResourceId": "lynk-k3s-dev-artifactbucket-acumvnfx55sd",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "ElasticIp",
+          "PhysicalResourceId": "3.1.88.80",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "GatewayAttachment",
+          "PhysicalResourceId": "IGW|vpc-09c4afddd4dfc6502",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "InstanceProfile",
+          "PhysicalResourceId": "lynk-k3s-dev-InstanceProfile-laelrId0FDdg",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "InstanceRole",
+          "PhysicalResourceId": "lynk-k3s-dev-InstanceRole-kGsx9JYHkqVh",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "Instance",
+          "PhysicalResourceId": "i-03bb7dcb94ec8bd21",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "InternetGateway",
+          "PhysicalResourceId": "igw-0bb523dabd532a6e9",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "InternetRoute",
+          "PhysicalResourceId": "rtb-0a44522bc2a4690b5|0.0.0.0/0",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "IpAssociation",
+          "PhysicalResourceId": "eipassoc-0d9ab4bf56ed84463",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "RouteAssociation",
+          "PhysicalResourceId": "rtbassoc-057406c3a2418d297",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "RouteTable",
+          "PhysicalResourceId": "rtb-0a44522bc2a4690b5",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "SecurityGroup",
+          "PhysicalResourceId": "sg-0548386ccc4cb294f",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "Subnet",
+          "PhysicalResourceId": "subnet-00400b58035a53c92",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "Vpc",
+          "PhysicalResourceId": "vpc-09c4afddd4dfc6502",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        }
+      ],
+      "execution_status": "UPDATE_COMPLETE",
+      "live_retention_verified": true,
+      "physical_ids_unchanged": true
+    },
+    "lynk-cicd": {
+      "change_set_id": "arn:aws:cloudformation:ap-southeast-1:231136241975:changeSet/cp06-retain-20261016T092516Z/efa3ab1f-97e3-43d7-9b05-4407a59c7d8a",
+      "stack_id": "arn:aws:cloudformation:ap-southeast-1:231136241975:stack/lynk-cicd/0e9079c0-c352-11f1-a5b9-02ffec7406f1",
+      "resources": 5,
+      "original_sha256": "4a93131762628b39584127fe746bff054292a7369119b16b84a2f54f857f014a",
+      "candidate_sha256": "6636db1a20395a71a3049b1a5cffbb98788a50a27d27759844f841e099ddac00",
+      "only_retention_lines_added": true,
+      "reviewed_before_execute": true,
+      "properties_unchanged": true,
+      "changes": [
+        {
+          "LogicalResourceId": "BootstrapRole",
+          "PhysicalResourceId": "lynk-github-bootstrap",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "DeployDocument",
+          "PhysicalResourceId": "LynkDeploy",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "DeployRole",
+          "PhysicalResourceId": "lynk-github-deploy",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "GitHubProvider",
+          "PhysicalResourceId": "arn:aws:iam::231136241975:oidc-provider/token.actions.githubusercontent.com",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        },
+        {
+          "LogicalResourceId": "NodeArtifactPolicy",
+          "PhysicalResourceId": "lynk--NodeA-OpeJ8TbyjiAK",
+          "Action": "Modify",
+          "Replacement": "False",
+          "Scope": ["DeletionPolicy", "UpdateReplacePolicy"]
+        }
+      ],
+      "execution_status": "UPDATE_COMPLETE",
+      "live_retention_verified": true,
+      "physical_ids_unchanged": true
+    }
+  }
+}
