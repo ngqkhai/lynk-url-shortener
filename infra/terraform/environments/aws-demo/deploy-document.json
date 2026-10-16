@@ -1,0 +1,30 @@
+{
+  "schemaVersion" : "2.2",
+  "description" : "Deploy a validated Lynk release using the installed root-owned entrypoint",
+  "parameters" : {
+    "Action" : {
+      "type" : "String",
+      "allowedPattern" : "^(deploy|rollback)$",
+      "interpolationType" : "ENV_VAR"
+    },
+    "Revision" : {
+      "default" : "0",
+      "type" : "String",
+      "allowedPattern" : "^[0-9]+$",
+      "interpolationType" : "ENV_VAR"
+    },
+    "ReleaseId" : {
+      "type" : "String",
+      "allowedPattern" : "^[0-9a-f]{40}$",
+      "interpolationType" : "ENV_VAR"
+    }
+  },
+  "mainSteps" : [ {
+    "inputs" : {
+      "timeoutSeconds" : "3600",
+      "runCommand" : [ "/opt/lynk/bin/deploy.sh \"$SSM_Action\" \"$SSM_ReleaseId\" \"$SSM_Revision\"" ]
+    },
+    "name" : "deploy",
+    "action" : "aws:runShellScript"
+  } ]
+}

@@ -1,0 +1,162 @@
+{
+  "checkpoint": "CP05",
+  "status": "model_verified_pending_branch_ci",
+  "observed_at": "2026-10-16T09:19:54.844729+00:00",
+  "base_commit": "7485039ef7625fff9d9c4b222745e93af30fe63c",
+  "previous_branch_ci": {
+    "id": 38878762561,
+    "conclusion": "success"
+  },
+  "configuration_resources": 25,
+  "logical_resources": {
+    "lynk-k3s-dev": 14,
+    "lynk-cicd": 5
+  },
+  "preview": {
+    "backend": "isolated local; no apply",
+    "imports": 25,
+    "creates": 0,
+    "updates": 0,
+    "deletes": 0,
+    "all_addresses_match_mapping": true,
+    "resource_actions": {
+      "aws_eip.node": ["no-op"],
+      "aws_eip_association.node": ["no-op"],
+      "aws_iam_instance_profile.node": ["no-op"],
+      "aws_iam_openid_connect_provider.github": ["no-op"],
+      "aws_iam_role.bootstrap": ["no-op"],
+      "aws_iam_role.deploy": ["no-op"],
+      "aws_iam_role.node": ["no-op"],
+      "aws_iam_role_policy.bootstrap": ["no-op"],
+      "aws_iam_role_policy.deploy": ["no-op"],
+      "aws_iam_role_policy.node_artifacts": ["no-op"],
+      "aws_iam_role_policy_attachment.node_ssm": ["no-op"],
+      "aws_instance.node": ["no-op"],
+      "aws_internet_gateway.public": ["no-op"],
+      "aws_route.default": ["no-op"],
+      "aws_route_table.public": ["no-op"],
+      "aws_route_table_association.public": ["no-op"],
+      "aws_s3_bucket.artifacts": ["no-op"],
+      "aws_s3_bucket_lifecycle_configuration.artifacts": ["no-op"],
+      "aws_s3_bucket_ownership_controls.artifacts": ["no-op"],
+      "aws_s3_bucket_public_access_block.artifacts": ["no-op"],
+      "aws_s3_bucket_server_side_encryption_configuration.artifacts": ["no-op"],
+      "aws_security_group.node": ["no-op"],
+      "aws_ssm_document.deploy": ["no-op"],
+      "aws_subnet.public": ["no-op"],
+      "aws_vpc.network": ["no-op"]
+    }
+  },
+  "preserved": {
+    "instance_id": "i-03bb7dcb94ec8bd21",
+    "instance_type": "t3.small",
+    "cpu_credits": "standard",
+    "root_volume_size": 30,
+    "delete_on_termination": false,
+    "eip": "3.1.88.80",
+    "oidc_subjects": "immutable repository owner/repository IDs and environment scopes retained",
+    "ssm_document_version": "2; exact Content bytes preserved"
+  },
+  "validation": {
+    "fmt": true,
+    "validate": true,
+    "warnings": 0
+  },
+  "runtime_preflight": {
+    "command_id": "fbe464cb-d6e8-4447-bde6-57c80e688d0b",
+    "runtime": {
+      "k3s": "k3s version v1.37.1+k3s1 (356c0254)\ngo version go1.26.8",
+      "helm": "v3.21.2+g1259634",
+      "services": "active",
+      "memory": "total        used        free      shared  buff/cache   available\nMem:            1905        1691          64           4         330         214\nSwap:              0           0           0",
+      "pods": [
+        {
+          "namespace": "kube-system",
+          "name": "coredns-577d995dff-tjf5k",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [5]
+        },
+        {
+          "namespace": "kube-system",
+          "name": "helm-install-gateway-api-crd-xlxpm",
+          "phase": "Succeeded",
+          "ready": [false],
+          "restarts": [0]
+        },
+        {
+          "namespace": "kube-system",
+          "name": "local-path-provisioner-6858d854cf-2mpzt",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [1]
+        },
+        {
+          "namespace": "kube-system",
+          "name": "metrics-server-778c4649b4-xv862",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [6]
+        },
+        {
+          "namespace": "lynk-aws",
+          "name": "auth-service-8474c59dd-l45cp",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [0]
+        },
+        {
+          "namespace": "lynk-aws",
+          "name": "kafka-0",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [2]
+        },
+        {
+          "namespace": "lynk-aws",
+          "name": "kafka-topics-bw4nz",
+          "phase": "Succeeded",
+          "ready": [false],
+          "restarts": [0]
+        },
+        {
+          "namespace": "lynk-aws",
+          "name": "lynk-redis-5fc4c9cfcc-m8vx2",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [1]
+        },
+        {
+          "namespace": "lynk-aws",
+          "name": "redirect-service-68cb8774d4-5z28z",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [1]
+        },
+        {
+          "namespace": "lynk-aws",
+          "name": "url-service-69fc4b99b6-bw8vn",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [0]
+        },
+        {
+          "namespace": "traefik",
+          "name": "traefik-bf9974664-ndq8t",
+          "phase": "Running",
+          "ready": [true],
+          "restarts": [0]
+        }
+      ]
+    }
+  },
+  "failures_and_fixes": [
+    "Generation emitted mutually exclusive EIP/IPv6/AZ arguments; selected schema-compatible attributes without AWS mutations",
+    "Route-table association requires subnet/route-table import ID; corrected mapping from observed association ID",
+    "Lifecycle expiration had days plus false delete-marker argument; omitted marker argument to remove schema warning",
+    "SSM jsonencode changed whitespace and proposed document update; preserved exact live Content and excluded this file from prettier"
+  ],
+  "environment_bindings_applied": false,
+  "aws_resources_changed": false,
+  "ci": "Pending checkpoint branch push"
+}

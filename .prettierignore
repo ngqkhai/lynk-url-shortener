@@ -5,3 +5,5 @@ package-lock.json
 infra/k8s/helm/**/templates/
 .agents/
 .codex/
+# Preserve live SSM document bytes; whitespace changes create a new AWS version.
+infra/terraform/environments/aws-demo/deploy-document.json
