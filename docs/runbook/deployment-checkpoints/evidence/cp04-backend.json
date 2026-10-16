@@ -1,0 +1,140 @@
+{
+  "checkpoint": "CP04",
+  "status": "runtime_verified_pending_branch_ci",
+  "observed_at": "2026-10-16T09:06:00Z",
+  "account_id": "231136241975",
+  "region": "ap-southeast-1",
+  "deployment_mode": "paused",
+  "remote_main_before": "b6cc75a477df508eadda3b0f57d9a9994b304a11",
+  "base_commit": "89df6a14ffd28ee20333aecd05c7d1ae3c34a238",
+  "versions": {
+    "terraform": "1.16.6",
+    "aws_provider": "6.69.1",
+    "argocd_candidate": "v3.5.5"
+  },
+  "preflight": {
+    "sso": "re-authenticated by operator; STS account verified",
+    "stacks": {
+      "lynk-k3s-dev": "UPDATE_COMPLETE",
+      "lynk-cicd": "UPDATE_COMPLETE"
+    },
+    "instance": {
+      "id": "i-03bb7dcb94ec8bd21",
+      "type": "t3.small",
+      "state": "running",
+      "eip": "3.1.88.80",
+      "root_volume_id": "vol-09662942cb90152da",
+      "ssm": "Online"
+    },
+    "public_readiness": {
+      "status": "ready",
+      "service": "url-service",
+      "checks": {
+        "database": "ok"
+      }
+    },
+    "local_lint": "passed",
+    "local_tests": {
+      "passed": 42,
+      "skipped": 0,
+      "integration_enabled": true
+    }
+  },
+  "backend_created": true,
+  "bootstrap_state_migrated": true,
+  "locking_verified": true,
+  "isolated_recovery_verified": true,
+  "ci": "Pending checkpoint branch push; local results are not CI results",
+  "live_bucket_controls": {
+    "get-bucket-versioning": {
+      "Status": "Enabled"
+    },
+    "get-bucket-encryption": {
+      "ServerSideEncryptionConfiguration": {
+        "Rules": [
+          {
+            "ApplyServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "AES256"
+            },
+            "BucketKeyEnabled": false,
+            "BlockedEncryptionTypes": {
+              "EncryptionType": ["SSE-C"]
+            }
+          }
+        ]
+      }
+    },
+    "get-public-access-block": {
+      "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "IgnorePublicAcls": true,
+        "BlockPublicPolicy": true,
+        "RestrictPublicBuckets": true
+      }
+    },
+    "get-bucket-ownership-controls": {
+      "OwnershipControls": {
+        "Rules": [
+          {
+            "ObjectOwnership": "BucketOwnerEnforced"
+          }
+        ]
+      }
+    },
+    "get-bucket-policy": {
+      "Policy": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "DenyInsecureTransport",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:*",
+            "Resource": [
+              "arn:aws:s3:::lynk-tfstate-231136241975-ap-southeast-1-aws-demo",
+              "arn:aws:s3:::lynk-tfstate-231136241975-ap-southeast-1-aws-demo/*"
+            ],
+            "Condition": {
+              "Bool": {
+                "aws:SecureTransport": "false"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "get-bucket-policy-status": {
+      "PolicyStatus": {
+        "IsPublic": false
+      }
+    }
+  },
+  "migration": {
+    "lineage_equal": false,
+    "serial_equal": false,
+    "resource_bindings_equal": true,
+    "outputs_equal": true,
+    "serial_before": 7,
+    "serial_after": 1,
+    "lineage_before": "9c6dfe3b-7e78-f628-9212-ca753ad971bb",
+    "lineage_after": "1562dc8f-ac5c-6468-f3dc-26f758142bb7",
+    "managed_resources": 6,
+    "remote_version_id": "30bVm2FAPTNFGtN9WBMbkFNAcVN8v3uy",
+    "remote_encryption": "AES256",
+    "post_migration_plan_exit_code": 0,
+    "diagnosis": "Native migration into an absent S3 snapshot persisted copied bindings with new lineage/serial. remote.State.PersistState calls refreshState when readState is nil; absent payload resets metadata before initial lineage generation. Original metadata retained in protected local backup; no forced state rewrite."
+  },
+  "cli_archive_sha256": "38034b38d03096399a7a1264a14561a8029b2b496fd1f169452656e53968f1b7",
+  "isolated_verification_evidence": "cp04-isolated-backend.json",
+  "environment_backend_initialized": true,
+  "terraform_validate": {
+    "bootstrap": true,
+    "aws-demo": true
+  },
+  "workflow_gate_tests": {
+    "passed": 4
+  },
+  "deployment_mode_tests": {
+    "passed": 4
+  }
+}

@@ -102,9 +102,28 @@ jobs:
           pip install PyYAML==6.0.3
           python3 scripts/cd/check-gitops.py
 
+  terraform-checks:
+    name: Terraform format and validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.6
+          terraform_wrapper: false
+      - name: Validate roots without AWS credentials or backend access
+        run: |
+          terraform fmt -check -recursive infra/terraform
+          for root in infra/terraform/bootstrap infra/terraform/environments/aws-demo; do
+            terraform -chdir="$root" init -backend=false -input=false -lockfile=readonly
+            terraform -chdir="$root" validate
+          done
+
   build-and-push:
     name: Publish immutable images
-    needs: [lint-and-test, gateway-e2e, automation-checks, gitops-checks]
+    needs: [lint-and-test, gateway-e2e, automation-checks, gitops-checks, terraform-checks]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

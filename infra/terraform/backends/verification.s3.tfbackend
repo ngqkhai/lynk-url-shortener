@@ -1,0 +1,8 @@
+# Use only with a temporary, provider-free Terraform root and fixture data.
+# Never copy production/bootstrap state into this prefix for a locking test.
+bucket              = "lynk-tfstate-231136241975-ap-southeast-1-aws-demo"
+key                 = "verification/cp04/terraform.tfstate"
+region              = "ap-southeast-1"
+encrypt             = true
+use_lockfile        = true
+allowed_account_ids = ["231136241975"]

@@ -1,0 +1,16 @@
+{
+  "verified_at": "2026-10-16T09:08:46.456293+00:00",
+  "bucket": "lynk-tfstate-231136241975-ap-southeast-1-aws-demo",
+  "fixture_key": "verification/cp04/68aaaef199d64b36b60e9dc42b7609c6/terraform.tfstate",
+  "recovery_key": "verification/cp04/68aaaef199d64b36b60e9dc42b7609c6/recovered.tfstate",
+  "recovered_version_id": "3xALhX9iTQ6AN.2nVuEP0dQED_IVlSU6",
+  "lock_observed": true,
+  "concurrent_writer_rejected": true,
+  "owner_completed": true,
+  "recovered_state_equal_to_v1": true,
+  "original_key_unchanged_by_recovery": true,
+  "serial_v1": 1,
+  "serial_v2": 2,
+  "scope": "provider-free terraform_data fixture; no application or bootstrap state",
+  "retained": "Fixture objects/versions retained under verification prefix for audit"
+}
