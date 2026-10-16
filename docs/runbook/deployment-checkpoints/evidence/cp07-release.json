@@ -1,0 +1,161 @@
+{
+  "checkpoint": "CP07",
+  "started_at": "2026-10-16T09:35:01.543512+00:00",
+  "stacks": {
+    "lynk-cicd": {
+      "stack_id": "arn:aws:cloudformation:ap-southeast-1:231136241975:stack/lynk-cicd/0e9079c0-c352-11f1-a5b9-02ffec7406f1",
+      "request_token": "cp07-release-ca82c628e66641909995951d6f8a6fbb",
+      "retention_audited_immediately_before_delete": true,
+      "expected_retained_resources": 5,
+      "mode": "STANDARD",
+      "status": "DELETE_COMPLETE",
+      "events": [
+        {
+          "LogicalResourceId": "GitHubProvider",
+          "PhysicalResourceId": "arn:aws:iam::231136241975:oidc-provider/token.actions.githubusercontent.com",
+          "ResourceType": "AWS::IAM::OIDCProvider",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:07.397000+00:00"
+        },
+        {
+          "LogicalResourceId": "BootstrapRole",
+          "PhysicalResourceId": "lynk-github-bootstrap",
+          "ResourceType": "AWS::IAM::Role",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:06.908000+00:00"
+        },
+        {
+          "LogicalResourceId": "DeployRole",
+          "PhysicalResourceId": "lynk-github-deploy",
+          "ResourceType": "AWS::IAM::Role",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:06.830000+00:00"
+        },
+        {
+          "LogicalResourceId": "NodeArtifactPolicy",
+          "PhysicalResourceId": "lynk--NodeA-OpeJ8TbyjiAK",
+          "ResourceType": "AWS::IAM::Policy",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:06.761000+00:00"
+        },
+        {
+          "LogicalResourceId": "DeployDocument",
+          "PhysicalResourceId": "LynkDeploy",
+          "ResourceType": "AWS::SSM::Document",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:06.709000+00:00"
+        }
+      ],
+      "all_resources_delete_skipped": true
+    },
+    "lynk-k3s-dev": {
+      "stack_id": "arn:aws:cloudformation:ap-southeast-1:231136241975:stack/lynk-k3s-dev/ffe15400-c33b-11f1-a25d-067b0c3a1039",
+      "request_token": "cp07-release-36105261b3b147d1ac7dd20606031d1d",
+      "retention_audited_immediately_before_delete": true,
+      "expected_retained_resources": 14,
+      "mode": "STANDARD",
+      "status": "DELETE_COMPLETE",
+      "events": [
+        {
+          "LogicalResourceId": "Vpc",
+          "PhysicalResourceId": "vpc-09c4afddd4dfc6502",
+          "ResourceType": "AWS::EC2::VPC",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:18.212000+00:00"
+        },
+        {
+          "LogicalResourceId": "InternetGateway",
+          "PhysicalResourceId": "igw-0bb523dabd532a6e9",
+          "ResourceType": "AWS::EC2::InternetGateway",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:18.136000+00:00"
+        },
+        {
+          "LogicalResourceId": "InstanceRole",
+          "PhysicalResourceId": "lynk-k3s-dev-InstanceRole-kGsx9JYHkqVh",
+          "ResourceType": "AWS::IAM::Role",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:17.658000+00:00"
+        },
+        {
+          "LogicalResourceId": "RouteTable",
+          "PhysicalResourceId": "rtb-0a44522bc2a4690b5",
+          "ResourceType": "AWS::EC2::RouteTable",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:17.642000+00:00"
+        },
+        {
+          "LogicalResourceId": "GatewayAttachment",
+          "PhysicalResourceId": "IGW|vpc-09c4afddd4dfc6502",
+          "ResourceType": "AWS::EC2::VPCGatewayAttachment",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:17.625000+00:00"
+        },
+        {
+          "LogicalResourceId": "SecurityGroup",
+          "PhysicalResourceId": "sg-0548386ccc4cb294f",
+          "ResourceType": "AWS::EC2::SecurityGroup",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:17.253000+00:00"
+        },
+        {
+          "LogicalResourceId": "Subnet",
+          "PhysicalResourceId": "subnet-00400b58035a53c92",
+          "ResourceType": "AWS::EC2::Subnet",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:17.203000+00:00"
+        },
+        {
+          "LogicalResourceId": "InternetRoute",
+          "PhysicalResourceId": "rtb-0a44522bc2a4690b5|0.0.0.0/0",
+          "ResourceType": "AWS::EC2::Route",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:17.161000+00:00"
+        },
+        {
+          "LogicalResourceId": "InstanceProfile",
+          "PhysicalResourceId": "lynk-k3s-dev-InstanceProfile-laelrId0FDdg",
+          "ResourceType": "AWS::IAM::InstanceProfile",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:17.133000+00:00"
+        },
+        {
+          "LogicalResourceId": "ElasticIp",
+          "PhysicalResourceId": "3.1.88.80",
+          "ResourceType": "AWS::EC2::EIP",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:16.683000+00:00"
+        },
+        {
+          "LogicalResourceId": "Instance",
+          "PhysicalResourceId": "i-03bb7dcb94ec8bd21",
+          "ResourceType": "AWS::EC2::Instance",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:16.674000+00:00"
+        },
+        {
+          "LogicalResourceId": "ArtifactBucket",
+          "PhysicalResourceId": "lynk-k3s-dev-artifactbucket-acumvnfx55sd",
+          "ResourceType": "AWS::S3::Bucket",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:16.567000+00:00"
+        },
+        {
+          "LogicalResourceId": "RouteAssociation",
+          "PhysicalResourceId": "rtbassoc-057406c3a2418d297",
+          "ResourceType": "AWS::EC2::SubnetRouteTableAssociation",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:16.263000+00:00"
+        },
+        {
+          "LogicalResourceId": "IpAssociation",
+          "PhysicalResourceId": "eipassoc-0d9ab4bf56ed84463",
+          "ResourceType": "AWS::EC2::EIPAssociation",
+          "ResourceStatus": "DELETE_SKIPPED",
+          "Timestamp": "2026-10-16T09:35:16.235000+00:00"
+        }
+      ],
+      "all_resources_delete_skipped": true
+    }
+  }
+}

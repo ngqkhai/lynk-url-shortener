@@ -2,13 +2,13 @@
 
 The deployment migration starts with [CP01 baseline and ownership](deployment-checkpoints/cp01-baseline.md), including a fresh read-only runtime snapshot. This runbook describes the existing delivery path and its historical acceptance.
 
-During migration, [CP02](deployment-checkpoints/cp02-freeze.md) requires review on `aws-demo`, disables admin bypass and sets `LYNK_DEPLOY_MODE=paused`. Its branch adds fail-closed mode guards; until those guards reach `main`, the environment reviewer gate protects the old workflow. Do not approve legacy deployment jobs during the freeze.
+During migration, [CP02](deployment-checkpoints/cp02-freeze.md) requires review on `aws-demo`, disables admin bypass and sets `LYNK_DEPLOY_MODE=paused`. Its fail-closed mode guards reached `main` with CP04. Do not approve legacy deployment jobs during the freeze.
 
 [CP03](deployment-checkpoints/cp03-vault.md) establishes an encrypted runtime recovery bundle and the `aws-bootstrap` environment secret `ANSIBLE_VAULT_PASSWORD`. Its branch verifies recovery locally before bootstrap; Vault integration into fresh-host secret provisioning is planned for CP09. Runtime credentials and certificates remain unchanged.
 
 ## Ownership and prerequisites
 
-CloudFormation stack `lynk-k3s-dev` retains ownership of the existing EC2/network/storage. Stack `lynk-cicd` owns GitHub OIDC roles, the `LynkDeploy` SSM document and the node artifact policy. No Terraform import occurs.
+After [CP06 import](deployment-checkpoints/cp06-import-retain.md) and [CP07 release](deployment-checkpoints/cp07-single-owner.md), Terraform owns EC2/network/storage, GitHub OIDC/IAM, the `LynkDeploy` SSM document and the node artifact policy. Both legacy CloudFormation stacks have been deleted with resources retained. Their templates are historical references; do not deploy them or recreate stacks for the retained resources. Helm/SSM workload delivery remains paused during migration; ArgoCD ownership has not yet been adopted at CP07.
 
 GitHub environments restrict deployment to `main`:
 

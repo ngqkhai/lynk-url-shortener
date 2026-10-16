@@ -1,3 +1,5 @@
+# Retired in CP07: live AWS resources are owned by Terraform. Do not deploy.
+# Historical bootstrap reference; retention/release evidence is in docs/runbook/deployment-checkpoints/.
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Lynk single-node EC2 K3s experiment (t3.small, Free Plan)
 Parameters:

@@ -1,6 +1,6 @@
 # AWS deployment execution log
 
-This document includes historical snapshots and target ownership. For the current migration baseline, measured runtime, resource IDs and ownership, see [CP01](deployment-checkpoints/cp01-baseline.md). CloudFormation still owns AWS at CP01; Terraform ownership below is a future target.
+This document includes historical execution snapshots. [CP01](deployment-checkpoints/cp01-baseline.md) records the migration baseline. After [CP04–CP07](deployment-checkpoints/cp07-single-owner.md), Terraform owns the live AWS resources; both CloudFormation stacks were deleted with all 19 logical resources retained. The CloudFormation templates in `infra/aws/` are retired references and must not be deployed against these resources.
 
 ## Configuration
 
@@ -33,7 +33,7 @@ Keep Neon data and persistent Kafka volume when replacing application Pods. Capt
 
 ## Provisioned resources
 
-CloudFormation stack `lynk-k3s-dev` owns the AWS resources. Import into Terraform only after ownership transfer; do not let both reconcile the same resources.
+The historical bootstrap used CloudFormation stack `lynk-k3s-dev`. CP06 imported the resources into Terraform, and CP07 ended CloudFormation ownership using Retain. Use `infra/terraform/environments/aws-demo/` for AWS changes; do not recreate either legacy stack.
 
 - ArtifactBucket: `lynk-k3s-dev-artifactbucket-acumvnfx55sd`
 - VpcId: `vpc-09c4afddd4dfc6502`
