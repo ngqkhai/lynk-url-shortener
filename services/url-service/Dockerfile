@@ -10,7 +10,8 @@ RUN npm run build --workspace=@lynk/shared && npm run build --workspace=@lynk/ur
 
 FROM node:24-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production PORT=3001 HOST=0.0.0.0
+ARG RELEASE_SHA=local
+ENV NODE_ENV=production PORT=3001 HOST=0.0.0.0 RELEASE_SHA=${RELEASE_SHA}
 COPY package*.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY services/url-service/package.json ./services/url-service/

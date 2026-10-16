@@ -10,6 +10,17 @@ ANSIBLE = ROOT / "infra/ansible"
 
 
 def main():
+    status_checker = (ROOT / "scripts/cd/argocd-status.sh").read_text()
+    assert 'kubectl logs "deployment/$name" -n lynk-aws --tail=100' in status_checker
+    assert "record.get('releaseSha') == expected" in status_checker
+    assert 'check_deployment url-service "$url_digest" "$release_sha"' in status_checker
+    workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+    build = next(step for step in workflow["jobs"]["build-and-push"]["steps"] if step.get("id") == "image")
+    assert build["with"]["build-args"] == "RELEASE_SHA=${{ github.sha }}"
+    for service in ("url", "redirect", "auth"):
+        dockerfile = (ROOT / f"services/{service}-service/Dockerfile").read_text()
+        assert "ARG RELEASE_SHA=local" in dockerfile and "RELEASE_SHA=${RELEASE_SHA}" in dockerfile
+
     status = yaml.safe_load((ANSIBLE / "argocd-status.yml").read_text())[0]
     status_source = status["vars"]["status_script"].replace("{{ playbook_dir }}", str(ANSIBLE))
     status_dest = status["vars"]["installed_script"]

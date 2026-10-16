@@ -20,6 +20,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const)
 try {
   await gateway?.listen({ port: env.GATEWAY_PORT, host: env.HOST });
   await app.listen({ port: env.PORT, host: env.HOST });
+  app.log.info({ releaseSha: env.RELEASE_SHA }, 'auth-service listening');
 } catch (err) {
   app.log.error({ err }, 'Startup failed');
   await close();

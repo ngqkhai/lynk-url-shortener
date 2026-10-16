@@ -1,0 +1,120 @@
+- name: Re-read CP17 release, capacity and recovery preconditions
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    status_script: /opt/lynk/bin/argocd-status.sh
+    expected_revision: 87eb22600c545ac6952d472739b0091f5bd84281
+    release_sha: b6cc75a477df508eadda3b0f57d9a9994b304a11
+    expected_digests:
+      url: sha256:1d916376cf6afce9c98e6a4517e2dfb2356b285c1cd2d02c62e55a487e70c978
+      redirect: sha256:8bec2f41a7431722f156d6447bd13c9dfe5d54fedd771566b531661d1ee11e82
+      auth: sha256:f4e2964249d4c3679807ae5d315b34831e0bbdf7970119da830b74f42f8fd65c
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Record UTC time for these fresh measurements
+      ansible.builtin.command:
+        argv: [/usr/bin/date, -u, +%Y-%m-%dT%H:%M:%SZ]
+      register: observed_at
+      changed_when: false
+
+    - name: Read current Application state
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: application
+      changed_when: false
+
+    - name: Require Argo to remain healthy at the promoted chart revision
+      ansible.builtin.assert:
+        that:
+          - (application.stdout | from_json).spec.source.targetRevision == 'aws-demo'
+          - (application.stdout | from_json).status.sync.revision == expected_revision
+          - (application.stdout | from_json).status.sync.status == 'Synced'
+          - (application.stdout | from_json).status.health.status == 'Healthy'
+          - (application.stdout | from_json).spec.syncPolicy.automated.selfHeal is true
+          - (application.stdout | from_json).spec.syncPolicy.automated.prune is false
+          - (application.stdout | from_json).status.operationState.phase == 'Succeeded'
+        fail_msg: Current Argo state differs from CP16's verified state; keep release gate closed.
+
+    - name: Recheck release SHA, runtime digests, and PostSync smoke
+      ansible.builtin.command:
+        argv:
+          - '{{ status_script }}'
+          - '{{ expected_revision }}'
+          - '{{ release_sha }}'
+          - '{{ expected_digests.url }}'
+          - '{{ expected_digests.redirect }}'
+          - '{{ expected_digests.auth }}'
+      register: runtime_state
+      changed_when: false
+
+    - name: Read node capacity and readiness
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, nodes, -o, json]
+      register: nodes
+      changed_when: false
+
+    - name: Require one Ready K3s node; verify the AWS type separately
+      ansible.builtin.assert:
+        that:
+          - (nodes.stdout | from_json)['items'] | length == 1
+          - ((nodes.stdout | from_json)['items'] | map(attribute='status.conditions') | first | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length) == 1
+          - (nodes.stdout | from_json)['items'][0].metadata.labels['node.kubernetes.io/instance-type'] == 'k3s'
+        fail_msg: Node count/readiness or K3s node identity changed; do not start a release.
+
+    - name: Read live node CPU and memory usage from Metrics API
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', top, nodes]
+      register: node_usage
+      changed_when: false
+
+    - name: Read namespace Pod CPU and memory usage
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', top, pods, -A]
+      register: pod_usage
+      changed_when: false
+
+    - name: Read current application Deployment strategy and resource budgets
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, deployments, -n, lynk-aws, -o, json]
+      register: deployments
+      changed_when: false
+
+    - name: Read PVC identity and phase without accessing volume data
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, pvc, -n, lynk-aws, -o, json]
+      register: claims
+      changed_when: false
+
+    - name: Read node disk headroom and K3s service state
+      ansible.builtin.command:
+        argv: [/bin/sh, -c, 'df -Pk /var/lib/rancher/k3s | tail -1; systemctl is-active k3s']
+      register: disk_and_k3s
+      changed_when: false
+
+    - name: Summarize measured capacity without raw Kubernetes object data
+      ansible.builtin.debug:
+        msg:
+          observed_at_utc: '{{ observed_at.stdout }}'
+          argo: '{{ runtime_state.stdout }}'
+          node:
+            name: '{{ (nodes.stdout | from_json)["items"][0].metadata.name }}'
+            capacity: '{{ (nodes.stdout | from_json)["items"][0].status.capacity }}'
+            allocatable: '{{ (nodes.stdout | from_json)["items"][0].status.allocatable }}'
+            usage: '{{ node_usage.stdout_lines }}'
+          pod_usage: '{{ pod_usage.stdout_lines }}'
+          deployments: >-
+            {{ (deployments.stdout | from_json)["items"] | map(attribute='metadata.name') | list }}
+          rollout_strategies: >-
+            {{ (deployments.stdout | from_json)["items"] | map(attribute='spec.strategy') | list }}
+          deployment_images: >-
+            {{ (deployments.stdout | from_json)["items"] | map(attribute='spec.template.spec.containers') | map('map', attribute='image') | map('list') | list }}
+          deployment_requests: >-
+            {{ (deployments.stdout | from_json)["items"] | map(attribute='spec.template.spec.containers') | map('map', attribute='resources.requests') | map('list') | list }}
+          deployment_limits: >-
+            {{ (deployments.stdout | from_json)["items"] | map(attribute='spec.template.spec.containers') | map('map', attribute='resources.limits') | map('list') | list }}
+          persistent_volume_claims: >-
+            {{ (claims.stdout | from_json)["items"] | map(attribute='metadata.name') | zip((claims.stdout | from_json)["items"] | map(attribute='status.phase')) | list }}
+          filesystem_and_k3s: '{{ disk_and_k3s.stdout_lines }}'

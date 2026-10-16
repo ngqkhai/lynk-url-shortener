@@ -92,7 +92,7 @@ jobs:
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-application-aws-demo-branch.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-status.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/restore-aws-demo-single-source.yml --syntax-check
-          for playbook in infra/ansible/cp16-*.yml; do
+          for playbook in infra/ansible/cp16-*.yml infra/ansible/cp17-*.yml; do
             ansible-playbook -i infra/ansible/inventory.yml "$playbook" --syntax-check
           done
           python3 scripts/cd/test-workflow-gates.py
@@ -190,6 +190,7 @@ jobs:
           file: services/${{ matrix.service }}-service/Dockerfile
           push: true
           platforms: linux/amd64
+          build-args: RELEASE_SHA=${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/ngqkhai/lynk-url-shortener
             org.opencontainers.image.revision=${{ github.sha }}

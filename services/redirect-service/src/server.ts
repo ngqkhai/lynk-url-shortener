@@ -7,7 +7,7 @@ const app = buildApp(env);
 async function start(): Promise<void> {
   try {
     const address = await app.listen({ port: env.PORT, host: env.HOST });
-    app.log.info({ address }, 'redirect-service listening');
+    app.log.info({ address, releaseSha: env.RELEASE_SHA }, 'redirect-service listening');
   } catch (error) {
     app.log.error(error);
     process.exit(1);

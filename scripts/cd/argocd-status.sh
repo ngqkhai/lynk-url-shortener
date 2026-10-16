@@ -34,10 +34,10 @@ if operation and operation.get('phase') not in ('Succeeded',):
 PY
 
 check_deployment() {
-  local name=$1 digest=$2 deployment pods
+  local name=$1 digest=$2 release_sha=$3 deployment pods
   deployment="$($kubectl get deployment "$name" -n lynk-aws -o json)"
   pods="$($kubectl get pods -n lynk-aws -l "app=$name" -o json)"
-  python3 - "$deployment" "$pods" "$digest" "$name" <<'PY'
+  python3 - "$deployment" "$pods" "$digest" "$name" "$release_sha" <<'PY'
 import json, sys
 deployment, pods = map(json.loads, sys.argv[1:3])
 expected, name = sys.argv[3:5]
@@ -49,6 +49,7 @@ containers = spec.get('template', {}).get('spec', {}).get('containers', [])
 container = next((item for item in containers if item.get('name') == name), None)
 if not container or not container.get('image', '').endswith('@' + expected):
     raise SystemExit(f'{name} Deployment does not declare the expected digest')
+release_sha = sys.argv[5]
 ready = [pod for pod in pods.get('items', []) if pod.get('status', {}).get('phase') == 'Running']
 if not ready:
     raise SystemExit(f'{name} has no Running Pod')
@@ -58,11 +59,26 @@ for pod in ready:
     if not status or not status.get('ready') or not status.get('imageID', '').endswith('@' + expected):
         raise SystemExit(f'{name} Pod readiness or runtime image digest does not match')
 PY
+  local logs
+  logs="$($kubectl logs "deployment/$name" -n lynk-aws --tail=100)"
+  python3 - "$logs" "$release_sha" "$name" <<'PY'
+import json, sys
+logs, expected, name = sys.argv[1:]
+for line in logs.splitlines():
+    try:
+        record = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    if record.get('releaseSha') == expected:
+        break
+else:
+    raise SystemExit(f'{name} startup logs do not identify the expected release SHA')
+PY
 }
 
-check_deployment url-service "$url_digest"
-check_deployment redirect-service "$redirect_digest"
-check_deployment auth-service "$auth_digest"
+check_deployment url-service "$url_digest" "$release_sha"
+check_deployment redirect-service "$redirect_digest" "$release_sha"
+check_deployment auth-service "$auth_digest" "$release_sha"
 smoke="$($kubectl get job lynk-postsync-smoke -n lynk-aws -o json)"
 smoke_pods="$($kubectl get pods -n lynk-aws -l app=lynk-postsync-smoke -o json)"
 python3 - "$smoke" "$smoke_pods" "$url_digest" <<'PY'

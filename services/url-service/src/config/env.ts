@@ -6,6 +6,7 @@ export const envSchema = z
     PORT: z.coerce.number().default(3001),
     HOST: z.string().default('0.0.0.0'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+    RELEASE_SHA: z.union([z.literal('local'), z.string().regex(/^[0-9a-f]{40}$/)]).default('local'),
     DATABASE_URL: z.string().url(),
     DB_READINESS_CACHE_SECONDS: z.coerce.number().int().min(0).default(0),
     DB_CONNECT_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(2),
