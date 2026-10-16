@@ -57,22 +57,23 @@
     "node_ready": true,
     "allocatable_cpu": "2",
     "allocatable_memory": "3924200Ki",
-    "node_cpu_usage": "500m",
-    "node_cpu_usage_percent": 25,
-    "node_memory_usage": "2281Mi",
+    "node_cpu_usage": "368m",
+    "node_cpu_usage_percent": 18,
+    "node_memory_usage": "2282Mi",
     "node_memory_usage_percent": 59,
     "node_cpu_requests": "1100m",
     "node_memory_requests": "1452Mi",
     "node_cpu_limits": "4",
     "node_memory_limits": "2538Mi",
-    "root_disk_free": "21334488Ki",
+    "root_disk_free": "21327844Ki",
     "k3s_service": "active",
     "kafka_claim_data-kafka-0": "Bound",
     "node_pressure": false,
     "application_rollout_strategy": {
       "maxSurge": 0,
       "maxUnavailable": 1
-    }
+    },
+    "observed_at_utc": "2026-10-16T23:01:16Z"
   },
   "verification": {
     "local_lint_format_build_test": "success; integration suites skipped locally because Docker is unavailable",
@@ -80,6 +81,17 @@
     "promotion_guard_tests": "success",
     "chart_and_gitops_checks": "success",
     "preflight_playbook_syntax": "success",
-    "deployment_outcome": "pending reviewer approval"
+    "deployment_outcome": "pending main promotion/reviewer approval",
+    "latest_branch_ci_run": 38978920903,
+    "fresh_readonly_preflight": "success; 12 tasks passed, 0 changed",
+    "public_readiness": "HTTP 200"
+  },
+  "branch_source_sha": "1ae186cb309a97d5ddf4046358608e1a511672db",
+  "latest_branch_ci_run": {
+    "run_id": 38978920903,
+    "conclusion": "success",
+    "e2e_gateway_kafka": "success",
+    "lint_format_build_tests": "success",
+    "terraform_helm_gitops": "success"
   }
 }

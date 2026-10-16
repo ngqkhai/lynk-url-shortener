@@ -38,7 +38,7 @@
 
     - name: Read current application Deployments and Pods
       ansible.builtin.command:
-        argv: ['{{ kubectl }}', get, deployments, pods, -n, lynk-aws, -o, json]
+        argv: ['{{ kubectl }}', get, 'deployments,pods', -n, lynk-aws, -o, json]
       register: workloads
       changed_when: false
 
@@ -51,9 +51,9 @@
             import json
             import sys
 
-            app, workloads = map(json.loads, sys.argv[1:3])
-            revision = sys.argv[3]
-            expected = dict(zip(('url-service', 'redirect-service', 'auth-service'), sys.argv[4:7]))
+            app, workloads = json.load(sys.stdin)
+            revision = sys.argv[1]
+            expected = dict(zip(('url-service', 'redirect-service', 'auth-service'), sys.argv[2:5]))
             operation = app['status']['operationState']
             result = operation.get('syncResult', {})
             if operation.get('phase') != 'Succeeded' or result.get('revision') != revision:
@@ -105,12 +105,11 @@
                 'runtime_digests': 'matched',
                 'postsync_smoke': 'Succeeded',
             }, sort_keys=True))
-          - '{{ application.stdout }}'
-          - '{{ workloads.stdout }}'
           - '{{ expected_revision }}'
           - '{{ expected_digests.url }}'
           - '{{ expected_digests.redirect }}'
           - '{{ expected_digests.auth }}'
+        stdin: '{{ [application.stdout | from_json, workloads.stdout | from_json] | to_json }}'
       register: runtime_state
       changed_when: false
 
