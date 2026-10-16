@@ -92,6 +92,8 @@ jobs:
           curl -fsS https://get.helm.sh/helm-v3.21.2-linux-amd64.tar.gz -o /tmp/helm.tar.gz
           tar -xzf /tmp/helm.tar.gz -C /tmp
           /tmp/linux-amd64/helm lint infra/k8s/helm/lynk-services -f infra/k8s/helm/lynk-services/values-aws.yaml
+          /tmp/linux-amd64/helm lint infra/k8s/helm/lynk-services -f infra/k8s/helm/lynk-services/values-aws.yaml -f infra/k8s/helm/lynk-services/values-aws-demo.yaml
+          HELM_BINARY=/tmp/linux-amd64/helm python3 scripts/cd/test-aws-demo-chart.py
 
   gitops-checks:
     name: GitOps manifest checks

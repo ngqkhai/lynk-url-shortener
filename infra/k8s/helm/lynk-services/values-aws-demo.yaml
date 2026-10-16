@@ -1,0 +1,25 @@
+global:
+  imageTag: b6cc75a477df508eadda3b0f57d9a9994b304a11
+  migrationHookMode: argocd
+  postSyncSmoke:
+    enabled: true
+    timeoutSeconds: 3
+    attempts: 12
+
+urlService:
+  image:
+    repository: ghcr.io/ngqkhai/lynk-url-service
+    digest: sha256:1d916376cf6afce9c98e6a4517e2dfb2356b285c1cd2d02c62e55a487e70c978
+    pullPolicy: IfNotPresent
+
+redirectService:
+  image:
+    repository: ghcr.io/ngqkhai/lynk-redirect-service
+    digest: sha256:8bec2f41a7431722f156d6447bd13c9dfe5d54fedd771566b531661d1ee11e82
+    pullPolicy: IfNotPresent
+
+authService:
+  image:
+    repository: ghcr.io/ngqkhai/lynk-auth-service
+    digest: sha256:f4e2964249d4c3679807ae5d315b34831e0bbdf7970119da830b74f42f8fd65c
+    pullPolicy: IfNotPresent

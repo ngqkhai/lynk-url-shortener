@@ -1,0 +1,58 @@
+{{- if .Values.global.postSyncSmoke.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lynk-postsync-smoke
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: lynk-postsync-smoke
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: smoke
+          image: {{ include "lynk.image" (dict "image" .Values.urlService.image "tag" .Values.global.imageTag) | quote }}
+          imagePullPolicy: {{ .Values.urlService.image.pullPolicy }}
+          command: [node, --input-type=module, -e]
+          args:
+            - |
+              const endpoints = [
+                'http://url-service:3001/health/ready',
+                'http://redirect-service:3002/health/ready',
+                'http://auth-service:3004/health/ready',
+              ];
+              const timeoutMs = {{ .Values.global.postSyncSmoke.timeoutSeconds }} * 1000;
+              const attempts = {{ .Values.global.postSyncSmoke.attempts }};
+              const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+              for (const endpoint of endpoints) {
+                let status = 0;
+                for (let attempt = 0; attempt < attempts; attempt += 1) {
+                  try {
+                    const response = await fetch(endpoint, { signal: AbortSignal.timeout(timeoutMs) });
+                    status = response.status;
+                    if (response.ok) break;
+                  } catch {
+                    status = 0;
+                  }
+                  await delay(1000);
+                }
+                if (status < 200 || status >= 300) {
+                  console.error(`GET ${endpoint} failed with status=${status}`);
+                  process.exitCode = 1;
+                } else {
+                  console.log(`GET ${endpoint} status=${status}`);
+                }
+              }
+          resources:
+            {{- toYaml .Values.urlService.resources | nindent 12 }}
+{{- end }}
