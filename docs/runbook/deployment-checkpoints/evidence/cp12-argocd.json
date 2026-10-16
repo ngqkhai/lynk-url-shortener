@@ -1,0 +1,141 @@
+{
+  "checkpoint": "CP12",
+  "captured_at": "2026-10-16T16:20:16Z",
+  "branch": "checkpoint/cp12-argocd-bootstrap",
+  "deployment_gate": "paused_checked_before_branch_publish",
+  "deployment_environment_reviewers": ["ngqkhai"],
+  "target": {
+    "name": "lynk-k3s-dev",
+    "instance_type": "t3.medium",
+    "region": "ap-southeast-1",
+    "cluster_version": "v1.37.1+k3s1",
+    "node_count": 1,
+    "node_cpu_allocatable": "2",
+    "node_memory_allocatable": "3924200Ki",
+    "node_ephemeral_storage_allocatable_bytes": 28579587664
+  },
+  "preflight": {
+    "argocd_namespace_present": false,
+    "existing_pods": 11,
+    "node_cpu_requests": "750m",
+    "node_memory_requests": "876Mi",
+    "node_cpu_usage": "150m",
+    "node_cpu_usage_percent": 7,
+    "node_memory_usage": "2274Mi",
+    "node_memory_usage_percent": 59,
+    "host_memory_available_bytes": 2101362688,
+    "host_root_disk_available_bytes": 23550935040,
+    "target_transport": "AWS SSM to verified EC2; local kubeconfig kind context was not used"
+  },
+  "upstream": {
+    "version": "v3.5.5",
+    "source": "https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.5/manifests/install.yaml",
+    "vendored_file": "infra/argocd/upstream/install.yaml",
+    "sha256": "90dc9094bf4c5964afd9c0e35d735e1c2fcbbda4f8e36799c092d9864ed65f50",
+    "object_count": 59,
+    "kustomized_object_count": 60
+  },
+  "apply": {
+    "transport": "Ansible amazon.aws.aws_ssm",
+    "playbook": "infra/ansible/argocd.yml",
+    "server_side_dry_run": "passed_after_empty_namespace_creation",
+    "result": "success",
+    "tasks_ok": 22,
+    "tasks_changed": 3,
+    "tasks_failed": 0,
+    "namespace_created": true,
+    "deployment_gate_changed": false
+  },
+  "workloads": {
+    "ready": 7,
+    "desired_replicas_each": 1,
+    "ready_replicas_each": 1,
+    "applications": 0,
+    "images": [
+      {
+        "image": "quay.io/argoproj/argocd:v3.5.5",
+        "runtime_digest": "sha256:13db7b10db23283b1b36f855046602e18539a8a8204c9f6f039e8896c8897518"
+      },
+      {
+        "image": "ghcr.io/dexidp/dex:v2.45.1",
+        "runtime_digest": "sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462"
+      },
+      {
+        "image": "public.ecr.aws/docker/library/redis:8.2.3-alpine",
+        "runtime_digest": "sha256:08ad0b1d280850169a790dba1393ff7a90aef951fc19632cf4d3ce4f78e679ba"
+      }
+    ],
+    "argocd_server_service_type": "ClusterIP",
+    "argocd_server_ports": [80, 443],
+    "node_ports": [],
+    "resource_tracking_method": "annotation",
+    "secret_names_only": [
+      "argocd-initial-admin-secret",
+      "argocd-notifications-secret",
+      "argocd-redis",
+      "argocd-secret"
+    ],
+    "secret_values_read": false
+  },
+  "capacity_after_install": {
+    "node_cpu_requests": "1100m",
+    "node_memory_requests": "1452Mi",
+    "effective_request_delta": {
+      "cpu": "350m",
+      "memory": "576Mi"
+    },
+    "argocd_pods_point_in_time_usage": {
+      "cpu": "21m",
+      "memory": "164Mi"
+    },
+    "node_cpu_usage": "225m",
+    "node_cpu_usage_percent": 11,
+    "node_memory_usage": "2269Mi",
+    "node_memory_usage_percent": 59,
+    "measurement_limitation": "single point shortly after install; not a peak or adoption capacity forecast"
+  },
+  "private_access": {
+    "systemd_unit": "argocd-port-forward.service",
+    "remote_listener": "127.0.0.1:8443",
+    "ssm_document": "AWS-StartPortForwardingSessionToRemoteHost",
+    "local_tunnel_test_port": 18443,
+    "health_path": "/healthz",
+    "protocol": "HTTPS",
+    "http_status": 200,
+    "certificate_chain_verified": false,
+    "certificate_note": "curl used --insecure because Argo CD generated a self-signed certificate; this smoke validates the endpoint response, not certificate identity or trust"
+  },
+  "failures_and_adjustments": [
+    {
+      "symptom": "local kubectl default context reported kind-lynk-cluster v1.30",
+      "cause": "laptop kubeconfig was not the Lynk EC2 target",
+      "resolution": "did not mutate kind; pinned Ansible inventory to the verified EC2 instance and checked K3s through SSM"
+    },
+    {
+      "symptom": "initial node requests parser failed on quantity suffix 10M",
+      "cause": "ad-hoc parser did not handle all Kubernetes quantity formats",
+      "resolution": "used kubectl describe node allocated-resources output as authoritative"
+    },
+    {
+      "symptom": "full server-side dry-run returned NotFound for argocd namespace",
+      "cause": "API dry-run does not persist the Namespace object before validating namespaced objects",
+      "resolution": "created only the previously absent empty namespace, then reran the full server-side dry-run successfully"
+    },
+    {
+      "symptom": "Ansible SSM connection could not reach AWS SSO from default sandbox",
+      "cause": "restricted network namespace",
+      "resolution": "reran through the approved network-enabled execution environment"
+    },
+    {
+      "symptom": "argocd-server initially reported missing Redis secret/connection refused",
+      "cause": "Redis secret and endpoint were still initializing during rollout",
+      "resolution": "observed Redis endpoint appear; server became Ready and all seven workloads passed rollout"
+    }
+  ],
+  "limitations": [
+    "Argo CD 3.5 official tested Kubernetes matrix lists 1.36 through 1.33; K3s 1.37.1 is outside that matrix.",
+    "Initial controller health check is not workload adoption proof or a long-duration stability test.",
+    "Argo CD remains non-HA and is not production resilient to node failure.",
+    "No Application, adoption, self-heal, prune, or delivery enablement occurred in CP12."
+  ]
+}

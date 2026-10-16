@@ -1,0 +1,206 @@
+- name: Bootstrap the pinned non-HA Argo CD installation
+  hosts: lynk
+  gather_facts: false
+  vars:
+    argocd_source_dir: '{{ playbook_dir }}/../argocd'
+    argocd_install_dir: /opt/lynk/argocd
+    argocd_version: v3.5.5
+    kubectl: /usr/local/bin/kubectl
+  tasks:
+    - name: Record the K3s version without returning kubeconfig data
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', version, -o, json]
+      register: argocd_kubectl_version
+      changed_when: false
+
+    - name: Require the preflight K3s version
+      ansible.builtin.assert:
+        that:
+          - "'v1.37.1+k3s1' in argocd_kubectl_version.stdout"
+        fail_msg: The target K3s version differs from the CP12 preflight.
+
+    - name: Refuse to overwrite an existing Argo CD namespace
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, namespace, argocd, -o, name]
+      register: argocd_existing_namespace
+      changed_when: false
+      failed_when: false
+
+    - name: Require namespace absence rather than hiding an API connectivity error
+      ansible.builtin.assert:
+        that:
+          - argocd_existing_namespace.rc == 1
+          - "'NotFound' in argocd_existing_namespace.stderr"
+        fail_msg: Refusing CP12 bootstrap because namespace argocd exists or its state cannot be verified.
+
+    - name: Install the reviewed, locally pinned manifest tree
+      ansible.builtin.copy:
+        src: '{{ argocd_source_dir }}/'
+        dest: '{{ argocd_install_dir }}/'
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Verify upstream manifest checksum on the target
+      ansible.builtin.stat:
+        path: '{{ argocd_install_dir }}/upstream/install.yaml'
+        checksum_algorithm: sha256
+      register: argocd_manifest_stat
+
+    - name: Require the official Argo CD v3.5.5 manifest checksum
+      ansible.builtin.assert:
+        that:
+          - argocd_manifest_stat.stat.checksum == '90dc9094bf4c5964afd9c0e35d735e1c2fcbbda4f8e36799c092d9864ed65f50'
+        fail_msg: The vendored upstream manifest checksum does not match the reviewed release.
+
+    - name: Create the verified empty Argo CD namespace for server-side dry-run
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', create, namespace, argocd]
+      register: argocd_namespace_create
+      changed_when: "'created' in argocd_namespace_create.stdout"
+
+    - name: Validate the complete Argo CD overlay on the cluster API
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - apply
+          - --server-side
+          - --dry-run=server
+          - --kustomize
+          - '{{ argocd_install_dir }}'
+      register: argocd_dry_run
+      changed_when: false
+
+    - name: Apply Argo CD non-HA resources
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - apply
+          - --server-side
+          - --kustomize
+          - '{{ argocd_install_dir }}'
+      register: argocd_apply
+      changed_when: "'configured' in argocd_apply.stdout or 'created' in argocd_apply.stdout"
+
+    - name: Wait for all pinned Argo CD deployments
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - rollout
+          - status
+          - 'deployment/{{ item }}'
+          - -n
+          - argocd
+          - --timeout=300s
+      loop:
+        - argocd-server
+        - argocd-repo-server
+        - argocd-applicationset-controller
+        - argocd-notifications-controller
+        - argocd-dex-server
+        - argocd-redis
+      changed_when: false
+
+    - name: Wait for the single application controller
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - rollout
+          - status
+          - statefulset/argocd-application-controller
+          - -n
+          - argocd
+          - --timeout=300s
+      changed_when: false
+
+    - name: Install a loopback-only Argo CD port-forward systemd unit
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/roles/argocd/files/argocd-port-forward.service'
+        dest: /etc/systemd/system/argocd-port-forward.service
+        owner: root
+        group: root
+        mode: '0644'
+      register: argocd_port_forward_unit
+
+    - name: Enable and start private Argo CD port forwarding
+      ansible.builtin.systemd_service:
+        name: argocd-port-forward.service
+        daemon_reload: true
+        enabled: true
+        state: restarted
+      when: argocd_port_forward_unit.changed
+
+    - name: Ensure port forwarding is active
+      ansible.builtin.systemd_service:
+        name: argocd-port-forward.service
+        enabled: true
+        state: started
+
+    - name: Verify the port-forward listener is restricted to host loopback
+      ansible.builtin.command:
+        argv: [/usr/bin/ss, -lnt, 'sport = :8443']
+      register: argocd_port_forward_listener
+      changed_when: false
+
+    - name: Require a loopback-only listener
+      ansible.builtin.assert:
+        that:
+          - "'127.0.0.1:8443' in argocd_port_forward_listener.stdout"
+          - "'0.0.0.0:8443' not in argocd_port_forward_listener.stdout"
+
+    - name: Read Argo CD tracking configuration
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - get
+          - configmap
+          - argocd-cm
+          - -n
+          - argocd
+          - -o
+          - json
+      register: argocd_tracking_config
+      changed_when: false
+
+    - name: Read the API Service without printing credentials
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, service, argocd-server, -n, argocd, -o, json]
+      register: argocd_server_service
+      changed_when: false
+
+    - name: Validate annotation tracking and ClusterIP exposure
+      ansible.builtin.assert:
+        that:
+          - "'application.resourceTrackingMethod' in argocd_tracking_config.stdout"
+          - "'annotation' in argocd_tracking_config.stdout"
+          - "'ClusterIP' in argocd_server_service.stdout"
+
+    - name: Read initial admin Secret metadata only
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, secret, argocd-initial-admin-secret, -n, argocd, -o, name]
+      register: argocd_initial_credential
+      changed_when: false
+      failed_when: argocd_initial_credential.rc != 0
+
+    - name: Verify protected Argo CD credential material exists
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, secret, argocd-secret, -n, argocd, -o, name]
+      register: argocd_core_secret
+      changed_when: false
+      failed_when: argocd_core_secret.rc != 0
+
+    - name: Confirm no Argo CD Applications were adopted
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, applications.argoproj.io, -n, argocd, -o, name]
+      register: argocd_applications
+      changed_when: false
+      failed_when: argocd_applications.rc not in [0, 1]
+
+    - name: Report controller object names only
+      ansible.builtin.debug:
+        msg:
+          version: '{{ argocd_version }}'
+          applications: '{{ argocd_applications.stdout_lines | default([]) }}'
+          service_visibility: ClusterIP
+          port_forward: loopback-only
+          tracking: annotation

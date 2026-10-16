@@ -1,0 +1,30 @@
+[Unit]
+Description=Loopback-only Argo CD API port forward for AWS SSM sessions
+After=k3s.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=HOME=/run/argocd-port-forward
+ExecStart=/usr/local/bin/kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml -n argocd port-forward --address=127.0.0.1 svc/argocd-server 8443:443
+Restart=always
+RestartSec=5s
+RuntimeDirectory=argocd-port-forward
+RuntimeDirectoryMode=0700
+User=root
+Group=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/etc/rancher/k3s/k3s.yaml
+ReadWritePaths=/run/argocd-port-forward
+
+[Install]
+WantedBy=multi-user.target

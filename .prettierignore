@@ -7,3 +7,5 @@ infra/k8s/helm/**/templates/
 .codex/
 # Preserve live SSM document bytes; whitespace changes create a new AWS version.
 infra/terraform/environments/aws-demo/deploy-document.json
+# Keep the checksum-pinned upstream Argo CD release manifest byte-for-byte intact.
+infra/argocd/upstream/install.yaml
