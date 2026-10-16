@@ -1,78 +1,52 @@
 # AWS CI/CD and bootstrap
 
-The deployment migration starts with [CP01 baseline and ownership](deployment-checkpoints/cp01-baseline.md), including a fresh read-only runtime snapshot. This runbook describes the existing delivery path and its historical acceptance.
+Current handoff: [CP17 acceptance](deployment-checkpoints/cp17-release-evidence-and-capacity.md) and [CP18 operating lesson](deployment-checkpoints/cp18-operating-evidence.md). The accepted release is source `9673a0e`, run [38981715213](https://github.com/ngqkhai/lynk-url-shortener/actions/runs/38981715213), GitOps revision `032e64a`. This is a dated acceptance, not a live health guarantee. Read current heads, deployment mode and runtime before acting.
 
-During migration, [CP02](deployment-checkpoints/cp02-freeze.md) requires review on `aws-demo`, disables admin bypass and sets `LYNK_DEPLOY_MODE=paused`. Its fail-closed mode guards reached `main` with CP04. Do not approve legacy deployment jobs during the freeze.
+## Ownership and access
 
-[CP03](deployment-checkpoints/cp03-vault.md) establishes an encrypted runtime recovery bundle and the `aws-bootstrap` environment secret `ANSIBLE_VAULT_PASSWORD`. [CP09](deployment-checkpoints/cp09-ansible-host.md) now connects that bundle to host bootstrap, verifies existing secret bytes, and keeps runtime credentials and certificates unchanged.
+| Component                                                                                | Current writer                             | Boundary                                                                                                    |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| AWS EC2/network/EIP/EBS, IAM/OIDC, SSM documents and S3 policies                         | Terraform `infra/terraform/`               | Remote versioned state/locking; both legacy CloudFormation stacks retired with Retain. Never recreate them. |
+| Host packages, pinned tools, Vault files, backup timers, Argo installation/status helper | Ansible `infra/ansible/`                   | SSM transport; default host bootstrap does not reconcile application workloads.                             |
+| Three application Deployments, Services/routes, migration and smoke hooks                | Argo Application `aws-demo`                | Annotation tracking, selfHeal true, prune false; Helm is the renderer.                                      |
+| Traefik/Gateway CRDs, Kafka, Redis and persistent storage outside that Application       | Operator-managed existing platform         | Separate reviewed maintenance; do not assume Argo health covers them or enable prune/adoption implicitly.   |
+| lynk_urls / lynk_redirects / lynk_auth                                                   | URL / redirect / auth service respectively | Own-role backups; no cross-service SQL access.                                                              |
 
-## Ownership and prerequisites
+`LYNK_DEPLOY_MODE=argocd` selects GitOps delivery. Environment `aws-demo` restricts deployment to main and requires reviewer `ngqkhai`; approval is per run. `AWS_STATUS_ROLE_ARN` is the dedicated OIDC role restricted to the `LynkArgoStatus` document and one instance. The legacy `lynk-github-deploy` inline policy is now explicit Deny; old `Deploy AWS`/`LynkDeploy` delivery is retired. Do not switch to `ssm` as a recovery shortcut.
 
-After [CP06 import](deployment-checkpoints/cp06-import-retain.md) and [CP07 release](deployment-checkpoints/cp07-single-owner.md), Terraform owns EC2/network/storage, GitHub OIDC/IAM, the `LynkDeploy` SSM document and node artifact policy. CP09 adds a read-only Terraform state policy to the bootstrap role for dynamic inventory. Both legacy CloudFormation stacks have been deleted with resources retained. Their templates are historical references; do not deploy them or recreate stacks for the retained resources. Workload delivery remains paused; ArgoCD adoption is a later checkpoint.
-
-GitHub environments restrict deployment to `main`:
-
-- `aws-demo`: legacy `AWS_DEPLOY_ROLE_ARN`, `AWS_ARTIFACT_BUCKET`, `AWS_INSTANCE_ID` variables; no AWS access keys. CP15 adds `AWS_STATUS_ROLE_ARN` from Terraform output `status_role_arn`; it is a distinct OIDC role limited to the fixed read-only SSM status document and the target instance. Do not point it at the legacy deploy role.
-- `aws-bootstrap`: `AWS_BOOTSTRAP_ROLE_ARN`, manual reviewer `ngqkhai`; SSM session access permits root configuration and must remain separate from ordinary CD.
-
-The pre-deploy CI gate explicitly checks anonymous image access. On initial inspection, URL latest returned 200; redirect/auth anonymous access returned 403 (private or not yet published).
-
-Images must be **public** at `ghcr.io/ngqkhai/lynk-{url,redirect,auth}-service`. New GHCR packages default to private: set visibility to public in each package's settings before the first successful CD. Verify anonymous pull. `GITHUB_TOKEN` publishes inside Actions; no registry credential is stored on the node.
-
-## Bootstrap
-
-Use the manual `Bootstrap AWS host` workflow from `main`. Its default is check mode; turn check off to apply and pass the `aws-bootstrap` environment reviewer gate. It initializes the pinned Terraform backend read-only, resolves exactly one host from allowlisted outputs, restores Vault files in a private controller temp directory, and uses `amazon.aws.aws_ssm` with S3 transport. It does not require SSH keys or public port 22/6443. The GitHub OIDC role has not yet been exercised end-to-end; local SSO verification does not prove that role's effective access.
-
-For local execution with the approved SSO profile:
-
-```bash
-python3 -m venv /tmp/lynk-ansible
-/tmp/lynk-ansible/bin/pip install -r infra/ansible/requirements.txt
-/tmp/lynk-ansible/bin/ansible-galaxy collection install -r infra/ansible/requirements.yml
-AWS_PROFILE=ngqkhai-dev /tmp/lynk-terraform-bin/terraform -chdir=infra/terraform/environments/aws-demo init -input=false -lockfile=readonly -backend-config=../../backends/aws-demo.s3.tfbackend
-AWS_PROFILE=ngqkhai-dev PATH=/tmp/lynk-ansible/bin:$PATH python3 scripts/ansible/bootstrap.py --password-file .recovery/aws-demo.vault-password --check
-```
-
-The pinned Session Manager plugin installer verifies its checksum and AWS signature before extracting to a private prefix. Bootstrap accepts a controller password file or the named workflow environment variable; never pass the password itself in argv or workflow inputs. Existing secret files are compared with Vault and never overwritten or regenerated by CP09. Missing/mismatched files stop the run. Recover or regenerate the signing CA separately before certificate rotation; the earlier temporary signing key was deleted.
-
-Ansible manages OS packages, pinned K3s/Helm/AWS CLI, host config, runtime secrets and the root-owned CD entrypoint. The default bootstrap no longer reconciles Helm/Kubernetes workloads. Bootstrap is not part of every application deployment. Version drift fails rather than silently upgrading. The node is one t3.medium; Argo adoption still requires a measured capacity gate.
+Environment `aws-bootstrap` has a distinct privileged role and Vault password secret; default check mode and reviewer gate remain. GitHub bootstrap OIDC has not been proven end-to-end by CP17; local SSO bootstrap is separate evidence. Argo access is private through SSM and the node's loopback `127.0.0.1:8443` port-forward service. Do not expose Argo, SSH or Kubernetes API publicly or export credentials into Git.
 
 ## Application delivery
 
-1. PR: lint, format, build, full integration tests, deployment failure tests and gateway/Kafka E2E; no AWS deployment.
-2. Push to `main`: publish three images with commit SHA tags, collect their immutable digests, package chart/AWS values/smoke/manifest into a secret-free release.
-3. Reusable deploy workflow obtains OIDC credentials and uploads release/checksum to `releases/<sha>/` in the existing private artifact bucket. A different checksum cannot overwrite an existing release; rebuilds producing different digests require a new commit.
-4. Invoke only `LynkDeploy` on the configured instance. Poll terminal status and retain full command output under `deploy-logs/` (14 days).
-5. The node locks deployment, checks K3s/node/disk, downloads/checks archive, pre-pulls images sequentially, runs Helm migration hooks and upgrades digest-pinned Pods.
-6. Public smoke verifies auth/opaque tokens/ownership/refresh reuse/logout/redirect and uses local kubectl for the redirect service's own DB replication check. Tokens stay in memory. Smoke creates synthetic accounts/URLs; data cleanup is a separate maintenance task.
-7. Record successful commit/revision pairs in `/opt/lynk/releases/success.jsonl`.
+1. CI validates source, automation, Terraform and GitOps. Image classifier considers the three service trees, shared package, root package/tsconfig inputs, `.dockerignore` and `.github/workflows/ci.yml`. An unavailable base fails safe by requesting a build. GitOps/docs/infra-only changes with known base skip images.
+2. Main image-input changes publish three SHA-tagged images at `ghcr.io/ngqkhai/lynk-{url,redirect,auth}-service`, record immutable digests and package a checksum-verified release. Anonymous pull is an explicit gate; it passed for the accepted release.
+3. The promotion job waits for the `aws-demo` reviewer and serializes with `lynk-argocd-promotion` concurrency, without cancellation. It checks fresh source against main, validates chart ancestry and changes only `infra/k8s/helm/lynk-services/values-aws-demo.yaml` on the dedicated `aws-demo` branch using GITHUB_TOKEN. Stale sources and competing pushes fail; no force push. A no-op preserves the existing revision.
+4. Argo watches `aws-demo`, renders the pinned chart lineage (`87eb226`) and runs PreSync migration Jobs, app reconciliation and PostSync smoke. Names, PVC and certificate storage stay intact. A chart change on main requires separate reviewed chart promotion; the one-file release path cannot deliver it.
+5. GitHub assumes the read-only status role. The fixed host checker waits for exact values revision, successful operation, Synced/Healthy, observed Deployment generations, ready Pods with expected imageIDs and source SHA startup logs, plus successful smoke evidence. It uses one 840s deadline; each kubectl call is bounded. SSM execution timeout 900s and caller bound 930s do not themselves implement convergence polling.
+6. Record source SHA, manifest/digests, GitOps revision, Argo operation, Pod identities and smoke separately. CP17 also ran full public auth/ownership/refresh/logout/redirect/replication smoke with failure injection disabled. That synthetic test creates accounts/URLs; it is not a load benchmark.
 
-Both workflows share concurrency; the node has a second lock. Existing deployments are never canceled automatically. Deploy OIDC credentials last 70 minutes (role ceiling two hours), covering the full 65-minute job without expiring during rollback. SSM has a 60-minute execution ceiling; the runner polls for 61 minutes inside a 65-minute job. The node lock waits at most two minutes and each artifact download has a two-minute bound, leaving time for image pull, upgrade and rollback. A runner polling timeout does not cancel a potentially active migration: inspect SSM before retrying. No instance resize or CPU credit mode change is automatic.
+A green quality job or a local runner commit does not establish deployment. Docs-only main commits can advance while source `9673a0e` remains the live release. Read [CP17 evidence](deployment-checkpoints/evidence/cp17-release.json) and live state before drawing conclusions.
 
-## Failure and rollback
+## Failure and recovery
 
-Image/preflight failure occurs before Pod replacement. Helm upgrade or smoke failure attempts restoration of the previous Helm revision, checks smoke again, and always leaves the workflow failed. If restoration fails, inspect SSM logs and service status; do not report successful recovery.
+Start with the failed layer: CI/build → artifact/checksum → reviewer/promotion → Argo operation/hooks → Pod readiness/provenance → public request. Inspect remote aws-demo head before assuming a push occurred. Rerunning an old workflow retains its old source SHA/ref and does not pick up fixes on main.
 
-Database migrations must use expand/contract and remain compatible with the previous app. Helm rollback restores workloads, **not** the database schema. Contract migrations require a separate reviewed rollout.
+If status fails after a new promotion, the workflow attempts to revert that promotion only when deployment head still equals its promotion and main still equals its source. Otherwise it refuses and requires operator reconciliation. Revert restores desired values; the workflow stays failed, and successful recovery still requires checking Argo revision, Pods and smoke. A returned git push alone does not prove recovery.
 
-Manual `Deploy AWS` workflow supports redeploy of an already uploaded SHA, or rollback with a successful SHA/revision pair from `success.jsonl`. It can run only from `main`. The node verifies the pair before rollback. Helm retains 20 revisions. Releases are retained without the old seven-day expiry, including at least three successful releases; disk/registry cleanup is currently operator-managed and must preserve images for rollback. Initial imported R3 can be restored automatically by Helm before any CI release succeeds, but has no CI manifest for the manual SHA-based workflow.
+For manual recovery, first record current heads, operation and intended known-good values. Review an allowlisted values change against current aws-demo, keep concurrent delivery serialized and use a normal push. Do not use Helm rollback on the adopted app, force push, cancel an active migration or blindly retry a stale source. If current source freshness makes automation refuse, reconcile the new source/desired state explicitly.
 
-## Validation
+Application rollback restores images/manifests; it does not undo database schema, restore deleted rows, recover private signing keys or restore EBS. Migrations must remain expand/contract compatible. Use [CP11 backup/restore](deployment-checkpoints/cp11-db-backup-restore.md) for data and [CP10 PKI](deployment-checkpoints/cp10-mtls-rotation.md) for certificates after reviewing their maintenance boundaries. Production fault injection/restore was not used to prove CP17 rollback; local race/timeout/revert fixtures cover that logic.
 
-```bash
-python3 scripts/cd/test-deploy.py
-bash -n scripts/cd/deploy.sh scripts/bootstrap-aws-platform.sh
-helm lint infra/k8s/helm/lynk-services -f infra/k8s/helm/lynk-services/values-aws.yaml
-ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
-```
+## Bootstrap and version limits
 
-Failure scenarios cover image pull, migration, smoke/rollback, traversal rejection and successful release recording using simulated transports. Live CI/OIDC/image publication acceptance requires the PR to be merged into main. Do not merge automatically merely to exercise CD.
+Use `Bootstrap AWS host` from main, inspect its default check-mode result, and pass the separate aws-bootstrap reviewer gate before an intended apply. It initializes the pinned backend read-only, derives one host from allowlisted Terraform outputs and restores encrypted recovery material into a private controller directory. Passwords stay out of argv. Existing secret bytes must match Vault; bootstrap does not regenerate keys silently.
 
-## Execution evidence
+Pins: Terraform `1.16.6`, AWS provider `6.69.1`, Ansible core `2.19.3`, K3s `v1.37.1+k3s1`, Helm `v3.21.2`, AWS CLI `2.31.18`, Argo CD `v3.5.5`; current Traefik chart `41.5.0` / image `v3.7.13`. Read source pins and live versions rather than silently upgrading. Node is one t3.medium, Standard credits, 30 GiB gp3. No automatic larger instance, Unlimited or HA. CP17 usage snapshots and successful rollout do not establish a production SLO.
 
-- CP09 check mode and two Ansible applies succeeded on the existing instance with `changed=0`; the second run confirmed idempotency. Runtime secret files matched the Vault source and were not overwritten. K3s/Helm/AWS CLI versions were unchanged, and public synthetic smoke passed with failure injection disabled. The host bootstrap did not reconcile workloads.
-- Public application Pods remained Ready after bootstrap. Local validation: 42 app tests and seven deployment failure tests passed, as did lint/build/format, actionlint, cfn-lint, Helm lint and Ansible syntax.
-- PR #1 includes the explicitly authorized previous Sprint 3A/AWS changes. Main's old GitOps image-tag commit conflicted; it was merged and the obsolete per-service tag removed. PR CI passed all three test groups before the final reconciliation adjustment.
-- Production CD/OIDC acceptance remains pending main merge and public GHCR visibility. The PR is not automatically merged.
+## Backups and diagnostics
 
-Transport acceptance on the live node: a deliberately incomplete release was downloaded and checksum-verified through `LynkDeploy`, then rejected before Helm; stdout/stderr reached private S3 (two output files). The test release was removed and the application remained on its existing Helm revision. This verifies the installed entrypoint and node/SSM/S3 path using SSO; GitHub OIDC still requires the first main workflow. The Ansible collection calls S3 HeadBucket, so the bootstrap role additionally permits bucket listing/location lookup; object access stays limited to the instance transport prefix.
+Three separate own-role timers use UTC 02:00 URL, 02:15 redirect, 02:30 auth. Private bucket uses SSE-S3 AES256, retaining at most seven successful backups per database and pruning after success. At CP18 snapshot, all timers were active but LastTrigger was empty; first automatic firing remains unobserved. Prior manual backup/local restore evidence is not proof of future daily operation. Inspect LastTrigger, service exit timestamp, journal and new manifest/checksum together.
+
+Read-only release tracing commands and exercises are in [CP18](deployment-checkpoints/cp18-operating-evidence.md). Collect filtered metadata; never publish raw Terraform state, Vault files, tokens or connection strings. CP17 records an unresolved principal-simulator Organizations denial inconsistent with the management-account context/live status execution. Custom simulation checked the identity-policy layer only. This limitation is retained; no permissions were broadened to make a simulator pass.
+
+Historical direct SSM/Helm and initial GHCR visibility failures remain in checkpoint evidence and the [deployment execution history](aws-deployment.md). They are not the current operating procedure.

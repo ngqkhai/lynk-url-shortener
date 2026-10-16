@@ -1,12 +1,18 @@
-# AWS deployment execution log
+# AWS deployment: current ownership and execution history
 
 This document includes historical execution snapshots. [CP01](deployment-checkpoints/cp01-baseline.md) records the migration baseline. After [CP04–CP07](deployment-checkpoints/cp07-single-owner.md), Terraform owns the live AWS resources; both CloudFormation stacks were deleted with all 19 logical resources retained. The CloudFormation templates in `infra/aws/` are retired references and must not be deployed against these resources.
+
+## Current handoff — CP17/CP18
+
+The accepted release is source `9673a0e` from run [38981715213](https://github.com/ngqkhai/lynk-url-shortener/actions/runs/38981715213), GitOps revision `032e64a`. Argo verified exact revision/digests and successful hooks; full public auth/redirect/replication smoke passed. Legacy deploy IAM is explicitly denied. Follow [current CI/CD operations](aws-cicd.md) and [CP18 evidence-driven operating lesson](deployment-checkpoints/cp18-operating-evidence.md). Read current runtime before changes; these are dated observations.
+
+At CP18 preflight, Application `aws-demo` is Synced/Healthy, annotation-tracked, selfHeal true and prune false. It manages the three app Deployments, Services, routes and hooks. Kafka/Redis/PVC and Traefik remain outside this Application. First automatic backup timer firing has not yet been observed; manual backup/local restore acceptance is separate.
 
 ## Configuration
 
 - AWS profile: `ngqkhai-dev`; region: `ap-southeast-1`. STS identity verified 2026-10-09 using local SSO credentials.
 - Compute after [CP08](deployment-checkpoints/cp08-capacity-resize.md): one `t3.medium` (2 vCPU / 4 GiB), same gp3 30 GiB, CPU credits Standard. Capacity still requires the ArgoCD/rollout gates; do not increase beyond medium, enable Unlimited or add HA automatically.
-- Kubernetes: single-node K3s, Helm-managed Traefik and Lynk; managed PostgreSQL on Neon Free.
+- Kubernetes: single-node K3s; Argo manages Lynk application manifests using Helm rendering, while Traefik remains a separate Helm release; PostgreSQL on Neon. The historical Neon Free observations below are not a fresh billing/quota check.
 - Neon project: `restless-water-85518233`; branch `production`.
 - Domain: `lynk.codes`; authoritative DNS at Name.com.
 - Full Sprint 3A: auth, ownership, phantom mTLS, outbox, Kafka/Redis.
@@ -15,9 +21,13 @@ This document includes historical execution snapshots. [CP01](deployment-checkpo
 
 - Terraform: VPC/subnet/Internet Gateway/routes, Security Group, instance/IAM role, EBS, Elastic IP. Record resource IDs for import; never commit state or credentials.
 - Ansible: OS packages, version-pinned K3s/Helm/AWS CLI, node configuration, Vault-backed runtime secret verification and provisioning. Since CP09 it does not reconcile application/platform workloads.
-- Helm: deployments, probes, migration Jobs, Middleware/Ingress and Kafka/Redis.
+- Argo: application deployments/probes, migration and smoke Jobs, Middleware/Ingress rendered from the chart. Application self-heal is enabled; prune remains disabled.
+- Platform operator: existing Traefik/Gateway CRDs, Kafka/Redis and their storage outside the Application tree. Existing Lynk Helm release metadata is historical, not authorization to run a competing Helm upgrade.
+- Data ownership: URL/redirect/auth each use their own database role; infrastructure ownership does not grant cross-service SQL access.
 
-## Execution checkpoints
+## Historical execution checkpoints
+
+The sections below preserve earlier provisioning and acceptance records. Statements about CloudFormation ownership, t3.small, imported image tags, temporary access, Unlimited mode, legacy delivery or pending first publication describe those earlier dates. Current ownership and limits are above; do not repeat historical mutations as operating instructions.
 
 1. AWS SSO identity check succeeded. Existing `default` profile must not be used; explicitly select `ngqkhai-dev`.
 2. Neon CLI authentication/setup in progress. Never print connection strings/passwords/API tokens in logs.

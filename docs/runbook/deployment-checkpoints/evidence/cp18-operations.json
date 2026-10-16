@@ -1,0 +1,235 @@
+{
+  "checkpoint": "CP18",
+  "scope": "Read-only operating metadata and documentation handoff; no production fault injection or restore",
+  "observed": {
+    "applications": [
+      {
+        "automated": {
+          "prune": false,
+          "selfHeal": true
+        },
+        "health": "Healthy",
+        "name": "aws-demo",
+        "path": "infra/k8s/helm/lynk-services",
+        "resources": [
+          {
+            "kind": "Service",
+            "name": "auth-service"
+          },
+          {
+            "kind": "Service",
+            "name": "auth-service-gateway"
+          },
+          {
+            "kind": "Service",
+            "name": "redirect-service"
+          },
+          {
+            "kind": "Service",
+            "name": "url-service"
+          },
+          {
+            "kind": "Deployment",
+            "name": "auth-service"
+          },
+          {
+            "kind": "Deployment",
+            "name": "redirect-service"
+          },
+          {
+            "kind": "Deployment",
+            "name": "url-service"
+          },
+          {
+            "kind": "Job",
+            "name": "auth-service-migrate"
+          },
+          {
+            "kind": "Job",
+            "name": "lynk-postsync-smoke"
+          },
+          {
+            "kind": "Job",
+            "name": "redirect-service-migrate"
+          },
+          {
+            "kind": "Job",
+            "name": "url-service-migrate"
+          },
+          {
+            "kind": "Ingress",
+            "name": "lynk-auth-me"
+          },
+          {
+            "kind": "Ingress",
+            "name": "lynk-auth-public"
+          },
+          {
+            "kind": "Ingress",
+            "name": "lynk-public"
+          },
+          {
+            "kind": "Ingress",
+            "name": "lynk-urls"
+          },
+          {
+            "kind": "Middleware",
+            "name": "phantom-token"
+          }
+        ],
+        "revision": "032e64a28dcb84d8049d7297e070cc10b0319c33",
+        "sync": "Synced",
+        "targetRevision": "aws-demo"
+      }
+    ],
+    "argocd_port_forward": "active",
+    "backups": {
+      "auth": {
+        "last_service": "Result=success\nExecMainExitTimestamp=\nExecMainStatus=0",
+        "timer": "NextElapseUSecRealtime=Sat 2026-10-17 02:30:00 UTC\nLastTriggerUSec=\nActiveState=active"
+      },
+      "redirect": {
+        "last_service": "Result=success\nExecMainExitTimestamp=\nExecMainStatus=0",
+        "timer": "NextElapseUSecRealtime=Sat 2026-10-17 02:15:00 UTC\nLastTriggerUSec=\nActiveState=active"
+      },
+      "url": {
+        "last_service": "Result=success\nExecMainExitTimestamp=Fri 2026-10-16 15:44:12 UTC\nExecMainStatus=0",
+        "timer": "NextElapseUSecRealtime=Sat 2026-10-17 02:00:00 UTC\nLastTriggerUSec=\nActiveState=active"
+      }
+    },
+    "helm_releases": [
+      {
+        "app_version": "v1.6.1",
+        "chart": "gateway-api-crd-1.6.103",
+        "name": "gateway-api-crd",
+        "namespace": "kube-system",
+        "revision": "1",
+        "status": "deployed",
+        "updated": "2026-10-08 17:21:59.698797413 +0000 UTC"
+      },
+      {
+        "app_version": "0.2.0",
+        "chart": "lynk-services-0.2.0",
+        "name": "lynk-services",
+        "namespace": "lynk-aws",
+        "revision": "6",
+        "status": "deployed",
+        "updated": "2026-10-08 20:38:17.355371017 +0000 UTC"
+      },
+      {
+        "app_version": "v3.7.13",
+        "chart": "traefik-41.5.0",
+        "name": "traefik",
+        "namespace": "traefik",
+        "revision": "4",
+        "status": "deployed",
+        "updated": "2026-10-08 20:04:41.267698525 +0000 UTC"
+      }
+    ],
+    "observed_at_utc": "2026-10-16T23:44:12.458943+00:00",
+    "tracking": "annotation",
+    "versions": {
+      "argocd_image": "quay.io/argoproj/argocd:v3.5.5",
+      "aws_cli": "aws-cli/2.31.18 Python/3.13.7 Linux/7.0.0-1014-aws exe/x86_64.ubuntu.24",
+      "helm": "v3.21.2+g1259634",
+      "k3s": "k3s version v1.37.1+k3s1 (356c0254)\ngo version go1.26.8",
+      "traefik_chart": "traefik-41.5.0",
+      "traefik_image": "docker.io/traefik:v3.7.13"
+    }
+  },
+  "backup_s3_metadata": {
+    "bucket": "lynk-db-backups-231136241975-ap-southeast-1",
+    "databases": {
+      "lynk_urls": {
+        "successful_manifest_count": 2,
+        "latest_manifest": {
+          "Key": "db-backups/lynk_urls/20261016T154404Z-60675d03b9fb4ca494319243c1cc0900.manifest.json",
+          "LastModified": "2026-10-16T15:44:10+00:00",
+          "Size": 594
+        }
+      },
+      "lynk_redirects": {
+        "successful_manifest_count": 1,
+        "latest_manifest": {
+          "Key": "db-backups/lynk_redirects/20261016T154228Z-20080e11bbb74eb595d660a7acb968e3.manifest.json",
+          "LastModified": "2026-10-16T15:42:34+00:00",
+          "Size": 597
+        }
+      },
+      "lynk_auth": {
+        "successful_manifest_count": 1,
+        "latest_manifest": {
+          "Key": "db-backups/lynk_auth/20261016T154243Z-4938d5336ace4327b94742f9020959b3.manifest.json",
+          "LastModified": "2026-10-16T15:42:48+00:00",
+          "Size": 656
+        }
+      }
+    },
+    "public_access_block": {
+      "BlockPublicAcls": true,
+      "IgnorePublicAcls": true,
+      "BlockPublicPolicy": true,
+      "RestrictPublicBuckets": true
+    },
+    "encryption": {
+      "Rules": [
+        {
+          "ApplyServerSideEncryptionByDefault": {
+            "SSEAlgorithm": "AES256"
+          },
+          "BucketKeyEnabled": false,
+          "BlockedEncryptionTypes": {
+            "EncryptionType": ["SSE-C"]
+          }
+        }
+      ]
+    }
+  },
+  "repository_pins": {
+    "terraform": "1.16.6",
+    "aws_provider": "6.69.1",
+    "ansible_core": "2.19.3",
+    "k3s": "v1.37.1+k3s1",
+    "helm": "v3.21.2",
+    "aws_cli": "2.31.18",
+    "argocd": "v3.5.5"
+  },
+  "accepted_release": {
+    "source_sha": "9673a0e9d66a7d1336913953126a306037e4089f",
+    "run_id": 38981715213,
+    "gitops_revision": "032e64a28dcb84d8049d7297e070cc10b0319c33",
+    "chart_pin": "87eb22600c545ac6952d472739b0091f5bd84281",
+    "evidence": "cp17-release.json"
+  },
+  "ownership_limits": {
+    "argocd": "Three application Deployments, Services/routes and hooks only",
+    "platform_outside_application": ["Kafka", "Redis", "PVC", "Traefik", "Gateway CRDs"],
+    "prune_enabled": false,
+    "legacy_deploy_role": "Explicit Deny applied; CP17 full Terraform post-apply plan no changes"
+  },
+  "unverified_or_pending": [
+    "Learner predictions and read-only exercises await user completion",
+    "First automatic daily backup timer firing not yet observed; all LastTrigger fields empty at snapshot",
+    "CP18 did not repeat local restore or verify production RTO",
+    "GitHub bootstrap OIDC end-to-end acceptance remains unverified",
+    "Principal simulator Organizations discrepancy unresolved; custom simulation validates identity-policy layer only",
+    "Snapshots are not performance benchmarks, SLOs or proof of sustained capacity"
+  ],
+  "secret_handling": "Only version/resource/status metadata retained. No secret objects, credentials, raw application logs, state or database dumps.",
+  "local_verification": {
+    "lint": "passed",
+    "npm_test": {
+      "passed": 31,
+      "skipped_integration": 14,
+      "limitation": "Local integration dependency variables absent; branch CI required before main integration"
+    },
+    "new_or_updated_local_links": "passed",
+    "pre_existing_broken_links": ["README.md -> LICENSE"],
+    "json_parse": "passed",
+    "docs_only_image_classifier": {
+      "build_images": false,
+      "reason": "no-image-input-changed"
+    },
+    "formatter": "passed"
+  }
+}

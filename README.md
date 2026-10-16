@@ -142,6 +142,6 @@ Chi tiết hướng dẫn xem tại: [Local Setup Runbook](docs/runbook/local-se
 
 ## AWS delivery
 
-AWS runs a single-node K3s deployment on EC2 with PostgreSQL on Neon. CloudFormation manages infrastructure; Ansible bootstraps the node over SSM. GitHub Actions validates PRs, publishes digest-pinned GHCR images from `main`, and deploys through OIDC/SSM/Helm with smoke checks and application rollback. Activation requires public GHCR packages and merging the delivery PR; production CD acceptance is pending that first main release.
+AWS runs single-node K3s on a t3.medium in Standard credit mode, with PostgreSQL on Neon. Terraform owns AWS resources; Ansible manages the host through SSM. GitHub Actions validates source, publishes digest-pinned images when build inputs change, and promotes one values file to the `aws-demo` branch after reviewer approval. Argo CD reconciles application resources and runs migration/smoke hooks; the read-only status gate verifies the exact release. CP17 completed a real release and public smoke; the legacy deploy role is denied. Kafka/Redis/storage remain outside this Argo Application and prune remains disabled.
 
-See [AWS deployment](docs/runbook/aws-deployment.md) and [CI/CD operations](docs/runbook/aws-cicd.md) for bootstrap, release, rollback and current capacity limitations.
+See [AWS deployment](docs/runbook/aws-deployment.md), [CI/CD operations](docs/runbook/aws-cicd.md) and [CP18 operating lesson](docs/runbook/deployment-checkpoints/cp18-operating-evidence.md) for ownership, release tracing, recovery and measured limitations. Learner exercises and the first automatic backup timer observation remain pending.
