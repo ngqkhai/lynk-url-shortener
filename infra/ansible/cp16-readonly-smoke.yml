@@ -1,0 +1,41 @@
+- name: Run the chart's read-only readiness requests from an existing service Pod
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    smoke_script: >-
+      const endpoints = [
+        'http://url-service:3001/health/ready',
+        'http://redirect-service:3002/health/ready',
+        'http://auth-service:3004/health/ready'
+      ];
+      for (const endpoint of endpoints) {
+        const response = await fetch(endpoint, { signal: AbortSignal.timeout(3000) });
+        console.log(`GET ${endpoint} status=${response.status}`);
+        if (!response.ok) process.exitCode = 1;
+      }
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Run only the current chart's HTTP readiness probes inside url-service
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - exec
+          - -n
+          - lynk-aws
+          - deployment/url-service
+          - -c
+          - url-service
+          - --
+          - node
+          - --input-type=module
+          - -e
+          - '{{ smoke_script }}'
+      register: pre_adoption_smoke
+      changed_when: false
+
+    - name: Report public-service readiness without application data
+      ansible.builtin.debug:
+        msg: '{{ pre_adoption_smoke.stdout_lines }}'

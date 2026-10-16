@@ -1,0 +1,118 @@
+- name: Verify completed CP16 adoption and protected data identities
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    status_script: /opt/lynk/bin/argocd-status.sh
+    app_namespace: argocd
+    workload_namespace: lynk-aws
+    expected_revision: 87eb22600c545ac6952d472739b0091f5bd84281
+    release_sha: b6cc75a477df508eadda3b0f57d9a9994b304a11
+    expected_digests:
+      url: sha256:1d916376cf6afce9c98e6a4517e2dfb2356b285c1cd2d02c62e55a487e70c978
+      redirect: sha256:8bec2f41a7431722f156d6447bd13c9dfe5d54fedd771566b531661d1ee11e82
+      auth: sha256:f4e2964249d4c3679807ae5d315b34831e0bbdf7970119da830b74f42f8fd65c
+    hook_jobs:
+      - auth-service-migrate
+      - redirect-service-migrate
+      - url-service-migrate
+      - lynk-postsync-smoke
+    smoke_script: >-
+      const endpoints = [
+        'http://url-service:3001/health/ready',
+        'http://redirect-service:3002/health/ready',
+        'http://auth-service:3004/health/ready'
+      ];
+      for (const endpoint of endpoints) {
+        const response = await fetch(endpoint, { signal: AbortSignal.timeout(3000) });
+        console.log(`GET ${endpoint} status=${response.status}`);
+        if (!response.ok) process.exitCode = 1;
+      }
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Read the live Application state
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, '{{ app_namespace }}', -o, json]
+      register: application
+      changed_when: false
+
+    - name: Require successful pinned sync, health and manual no-prune policy
+      ansible.builtin.assert:
+        that:
+          - (application.stdout | from_json).spec.source.targetRevision == 'aws-demo'
+          - (application.stdout | from_json).status.sync.revision == expected_revision
+          - (application.stdout | from_json).status.sync.status == 'Synced'
+          - (application.stdout | from_json).status.health.status == 'Healthy'
+          - (application.stdout | from_json).status.operationState.phase == 'Succeeded'
+          - (application.stdout | from_json).status.operationState.syncResult.revision == expected_revision
+          - (application.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (application.stdout | from_json).spec.syncPolicy.prune is not defined or not (application.stdout | from_json).spec.syncPolicy.prune
+        fail_msg: Application did not pass the CP16 adoption gates; keep self-heal and prune disabled.
+
+    - name: Refresh the host-side read-only status verifier from the checked-in version
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../scripts/cd/argocd-status.sh'
+        dest: '{{ status_script }}'
+        owner: root
+        group: root
+        mode: '0700'
+      become: true
+
+    - name: Verify runtime digests and succeeded PostSync smoke
+      ansible.builtin.command:
+        argv:
+          - '{{ status_script }}'
+          - '{{ expected_revision }}'
+          - '{{ release_sha }}'
+          - '{{ expected_digests.url }}'
+          - '{{ expected_digests.redirect }}'
+          - '{{ expected_digests.auth }}'
+      register: runtime_verification
+      changed_when: false
+
+    - name: Require all four Argo hooks to have succeeded
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, job, '{{ item }}', -n, '{{ workload_namespace }}', -o, json]
+      loop: '{{ hook_jobs }}'
+      register: completed_hook_jobs
+      changed_when: false
+
+    - name: Assert each expected hook Job succeeded
+      ansible.builtin.assert:
+        that:
+          - (item.stdout | from_json).status.succeeded | default(0) | int == 1
+      loop: '{{ completed_hook_jobs.results }}'
+      loop_control:
+        label: '{{ item.item }}'
+
+    - name: Re-run internal readiness smoke after adoption
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - exec
+          - -n
+          - '{{ workload_namespace }}'
+          - deployment/url-service
+          - -c
+          - url-service
+          - --
+          - node
+          - --input-type=module
+          - -e
+          - '{{ smoke_script }}'
+      register: internal_smoke
+      changed_when: false
+
+    - name: Report verified runtime state without secret values
+      ansible.builtin.debug:
+        msg:
+          revision: '{{ expected_revision }}'
+          sync: Synced
+          health: Healthy
+          hooks: '{{ hook_jobs }}'
+          runtime: '{{ runtime_verification.stdout }}'
+          internal_smoke: '{{ internal_smoke.stdout_lines }}'
+          automated: false
+          prune: false

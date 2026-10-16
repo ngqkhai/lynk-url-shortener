@@ -1,0 +1,96 @@
+- name: Compare pinned aws-demo Helm output with live resources without applying it
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    rendered_manifest: /tmp/cp16-aws-demo-rendered.yaml
+    remote_manifest: /tmp/cp16-aws-demo-rendered.yaml
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Read the current Application policy before diffing
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: application
+      changed_when: false
+
+    - name: Require compare-only policy
+      ansible.builtin.assert:
+        that:
+          - (application.stdout | from_json).spec.source.targetRevision == 'aws-demo'
+          - (application.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (application.stdout | from_json).spec.syncPolicy.prune is not defined or not (application.stdout | from_json).spec.syncPolicy.prune
+
+    - name: Read metadata for every resource currently tracked by the Application
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - get
+          - '{{ item.kind | lower }}'
+          - '{{ item.name }}'
+          - -n
+          - '{{ item.namespace }}'
+          - -o
+          - json
+      loop: '{{ (application.stdout | from_json).status.resources }}'
+      register: tracked_resource_metadata
+      changed_when: false
+
+    - name: Report tracking identity and Kubernetes field managers only
+      ansible.builtin.debug:
+        msg:
+          kind: '{{ item.item.kind }}'
+          name: '{{ item.item.name }}'
+          tracking_id: "{{ ((item.stdout | from_json).metadata.annotations | default({})).get('argocd.argoproj.io/tracking-id', '') }}"
+          app_instance_label: "{{ ((item.stdout | from_json).metadata.labels | default({})).get('app.kubernetes.io/instance', '') }}"
+          helm_release_label: "{{ ((item.stdout | from_json).metadata.labels | default({})).get('app.kubernetes.io/managed-by', '') }}"
+          managers: "{{ ((item.stdout | from_json).metadata.managedFields | default([])) | map(attribute='manager') | unique | list }}"
+      loop: '{{ tracked_resource_metadata.results }}'
+      loop_control:
+        label: '{{ item.item.kind }}/{{ item.item.name }}'
+
+    - name: Copy the verified local Helm render to a temporary host file
+      ansible.builtin.copy:
+        src: '{{ rendered_manifest }}'
+        dest: '{{ remote_manifest }}'
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Calculate server-side dry-run diff only
+      ansible.builtin.command:
+        argv:
+          [
+            '{{ kubectl }}',
+            diff,
+            -n,
+            lynk-aws,
+            --server-side,
+            --field-manager=argocd-controller,
+            -f,
+            '{{ remote_manifest }}',
+          ]
+      register: desired_live_diff
+      changed_when: false
+      failed_when: false
+
+    - name: Remove the temporary rendered manifest from the host
+      ansible.builtin.file:
+        path: '{{ remote_manifest }}'
+        state: absent
+
+    - name: Require a normal diff result, not an API/authentication failure
+      ansible.builtin.assert:
+        that:
+          - desired_live_diff.rc in [0, 1]
+        fail_msg: kubectl diff failed; no workload apply was requested.
+
+    - name: Report the exact diff for review
+      ansible.builtin.debug:
+        msg:
+          return_code: '{{ desired_live_diff.rc }}'
+          resource_headers: "{{ desired_live_diff.stdout_lines | select('match', '^(---|\\+\\+\\+) ') | list }}"
+          diff_hunks: "{{ desired_live_diff.stdout_lines | select('match', '^@@') | list }}"
+          stderr: '{{ desired_live_diff.stderr }}'
+          workload_apply_invoked: false

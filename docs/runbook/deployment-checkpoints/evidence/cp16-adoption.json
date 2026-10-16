@@ -1,0 +1,80 @@
+{
+  "checkpoint": "CP16",
+  "observed_at": "2026-10-16T18:56:36Z",
+  "environment": {
+    "account_id": "231136241975",
+    "namespace": "lynk-aws",
+    "application": "argocd/aws-demo",
+    "promotion_gate": "paused"
+  },
+  "source": {
+    "branch": "aws-demo",
+    "revision": "87eb22600c545ac6952d472739b0091f5bd84281",
+    "release_sha": "b6cc75a477df508eadda3b0f57d9a9994b304a11",
+    "images": {
+      "url-service": "sha256:1d916376cf6afce9c98e6a4517e2dfb2356b285c1cd2d02c62e55a487e70c978",
+      "redirect-service": "sha256:8bec2f41a7431722f156d6447bd13c9dfe5d54fedd771566b531661d1ee11e82",
+      "auth-service": "sha256:f4e2964249d4c3679807ae5d315b34831e0bbdf7970119da830b74f42f8fd65c"
+    }
+  },
+  "adoption": {
+    "operation": "Succeeded",
+    "sync": "Synced",
+    "health": "Healthy",
+    "resource_tracking": "annotation",
+    "tracked_resource_count": 16,
+    "added_hook_jobs": [
+      "auth-service-migrate",
+      "redirect-service-migrate",
+      "url-service-migrate",
+      "lynk-postsync-smoke"
+    ],
+    "hook_jobs_succeeded": true,
+    "protected_identity_comparison": "passed",
+    "comparison_scope": [
+      "Deployment and StatefulSet UID, replicas, containers, resource requests and limits",
+      "Service UID, ClusterIP, selector, type and ports",
+      "Ingress UID and rules",
+      "PVC UID, phase, volume name, storage class and access modes",
+      "pre-existing Pod UID, owner, image ID and readiness",
+      "pre-existing Job UID"
+    ],
+    "migration_ledgers_match_pinned_code_after_hooks": true,
+    "migration_hashes": {
+      "url-service": [
+        "bf95de7e84d91373163990e8513c686fc9b410e2d9dc0774d0f6dc5f438fe946",
+        "0f60eacb4e2db5f7ba41ca4a036c38b83b716253c861e3cb147a0399f8296479"
+      ],
+      "redirect-service": [
+        "8c041831066172f06ebc0704c03b45a7d0f69ae1ecad1b24fcbe1421f96ec2a2",
+        "b3f72cd1ea6b0d1ff8b42e95ed83f84992212431dfbb269c270b5740f3cfc707"
+      ],
+      "auth-service": ["8493c6556006070bebf833b3a024c9b1fd0516954ad901a46b0f80a879163fa4"]
+    }
+  },
+  "verification": {
+    "runtime_digest_status": "passed",
+    "internal_readiness_http": {
+      "url-service": 200,
+      "redirect-service": 200,
+      "auth-service": 200
+    },
+    "public_readiness": {
+      "request": "GET https://lynk.codes/health/ready",
+      "status": 200
+    },
+    "self_heal": true,
+    "prune": false
+  },
+  "health_assessment_adjustment": {
+    "reason": "K3s Traefik does not publish status.loadBalancer.ingress for the existing stable EIP/DNS ingress route.",
+    "configuration": "resource.customizations.health.networking.k8s.io_Ingress",
+    "scope": "Traefik Ingresses must have host rules, HTTP paths and named Service backends; other ingress classes still require a load balancer hostname or IP.",
+    "operation_resumed_after_configuration": true,
+    "external_smoke_remains_required": true
+  },
+  "secrets": {
+    "secret_data_read": false,
+    "secret_values_recorded": false
+  }
+}

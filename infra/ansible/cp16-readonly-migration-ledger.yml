@@ -1,0 +1,46 @@
+- name: Inspect service-owned Drizzle migration ledgers without running migrations
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    services: [url-service, redirect-service, auth-service]
+    migration_query: >-
+      import postgres from 'postgres';
+      const sql = postgres(process.env.DATABASE_URL, { max: 1 });
+      try {
+        const rows = await sql.unsafe('SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at');
+        console.log(JSON.stringify(rows.map(({ id, hash, created_at }) => ({ id, hash, created_at }))));
+      } finally {
+        await sql.end();
+      }
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Query only the migration ledger through each service's existing DB identity
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - exec
+          - -n
+          - lynk-aws
+          - 'deployment/{{ item }}'
+          - -c
+          - '{{ item }}'
+          - --
+          - node
+          - --input-type=module
+          - -e
+          - '{{ migration_query }}'
+      loop: '{{ services }}'
+      register: migration_ledgers
+      changed_when: false
+
+    - name: Report migration IDs and content hashes without credentials or row data
+      ansible.builtin.debug:
+        msg:
+          service: '{{ item.item }}'
+          ledger: '{{ item.stdout | from_json }}'
+      loop: '{{ migration_ledgers.results }}'
+      loop_control:
+        label: '{{ item.item }}'

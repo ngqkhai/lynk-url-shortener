@@ -1,0 +1,126 @@
+- name: Correct Argo CD health assessment for K3s Traefik ingress
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    ingress_health_lua: |
+      hs = { status = "Progressing", message = "Waiting for an accepted ingress route" }
+      if obj.spec == nil or obj.spec.rules == nil or #obj.spec.rules == 0 then
+        hs.status = "Degraded"
+        hs.message = "Ingress must declare at least one host rule"
+        return hs
+      end
+
+      -- K3s Traefik routes the stable EIP/DNS directly and does not publish a
+      -- status.loadBalancer address. External smoke tests verify the real route.
+      if obj.spec.ingressClassName == "traefik" then
+        for _, rule in ipairs(obj.spec.rules) do
+          if rule.host == nil or rule.host == "" or rule.http == nil or rule.http.paths == nil or #rule.http.paths == 0 then
+            hs.status = "Degraded"
+            hs.message = "Traefik ingress rule must include a host and HTTP path"
+            return hs
+          end
+          for _, path in ipairs(rule.http.paths) do
+            if path.backend == nil or path.backend.service == nil or path.backend.service.name == nil or path.backend.service.name == "" then
+              hs.status = "Degraded"
+              hs.message = "Traefik ingress path must target a named Service"
+              return hs
+            end
+          end
+        end
+        hs.status = "Healthy"
+        hs.message = "Traefik ingress rules and Service backends are configured; verify reachability with smoke tests"
+        return hs
+      end
+
+      if obj.status ~= nil and obj.status.loadBalancer ~= nil and obj.status.loadBalancer.ingress ~= nil then
+        for _, ingress in ipairs(obj.status.loadBalancer.ingress) do
+          if ingress.hostname ~= nil and ingress.hostname ~= "" or ingress.ip ~= nil and ingress.ip ~= "" then
+            hs.status = "Healthy"
+            hs.message = "Ingress has a load balancer address"
+            return hs
+          end
+        end
+      end
+      hs.message = "Waiting for a load balancer address"
+      return hs
+    ingress_patch: >-
+      {{ {'data': {'resource.customizations.health.networking.k8s.io_Ingress': ingress_health_lua}} | to_json }}
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Read Argo CD version and current health settings
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, configmap, argocd-cm, -n, argocd, -o, json]
+      register: current_config
+      changed_when: false
+
+    - name: Require the pinned annotation-tracking controller and no prior customization
+      ansible.builtin.assert:
+        that:
+          - (current_config.stdout | from_json).data['application.resourceTrackingMethod'] == 'annotation'
+          - (current_config.stdout | from_json).data['resource.customizations.health.networking.k8s.io_Ingress'] is not defined
+        fail_msg: Argo CD settings differ from reviewed CP16 state; stop before patching.
+
+    - name: Confirm every Lynk Ingress uses the Traefik class and lacks a load balancer address
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, ingress, -n, lynk-aws, -o, json]
+      register: ingress_objects
+      changed_when: false
+
+    - name: Store the four Ingress objects for explicit class and address checks
+      ansible.builtin.set_fact:
+        lynk_ingresses: '{{ (ingress_objects.stdout | from_json)["items"] }}'
+
+    - name: Require the observed K3s Traefik status shape
+      ansible.builtin.assert:
+        that:
+          - lynk_ingresses | length == 4
+          - lynk_ingresses | map(attribute='spec.ingressClassName') | unique | list == ['traefik']
+        fail_msg: Ingress state changed; do not apply this K3s-specific health rule.
+
+    - name: Require no Ingress to publish a load balancer address
+      ansible.builtin.assert:
+        that:
+          - item.status is not defined or item.status.loadBalancer is not defined or item.status.loadBalancer.ingress is not defined or item.status.loadBalancer.ingress | length == 0
+        fail_msg: An Ingress now publishes an address; reassess whether this customization is necessary.
+      loop: '{{ lynk_ingresses }}'
+      loop_control:
+        label: '{{ item.metadata.name }}'
+
+    - name: Dry-run the narrow health customization patch against the API
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - patch
+          - configmap
+          - argocd-cm
+          - -n
+          - argocd
+          - --type=merge
+          - --patch
+          - '{{ ingress_patch }}'
+          - --dry-run=server
+          - -o
+          - name
+      changed_when: false
+
+    - name: Apply only the reviewed Ingress health customization
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - patch
+          - configmap
+          - argocd-cm
+          - -n
+          - argocd
+          - --type=merge
+          - --patch
+          - '{{ ingress_patch }}'
+      register: health_patch_result
+      changed_when: "'patched' in health_patch_result.stdout"
+
+    - name: Report the bounded controller setting change
+      ansible.builtin.debug:
+        msg: '{{ health_patch_result.stdout }}; existing sync remains pinned, manual, and prune=false'

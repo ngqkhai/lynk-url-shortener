@@ -1,0 +1,302 @@
+- name: Adopt the seeded aws-demo release with one non-pruning Argo sync
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    snapshot_script: /opt/lynk/argocd-applications/snapshot-aws-demo-workloads.py
+    status_script: /opt/lynk/bin/argocd-status.sh
+    app_namespace: argocd
+    workload_namespace: lynk-aws
+    expected_revision: 87eb22600c545ac6952d472739b0091f5bd84281
+    release_sha: b6cc75a477df508eadda3b0f57d9a9994b304a11
+    expected_digests:
+      url: sha256:1d916376cf6afce9c98e6a4517e2dfb2356b285c1cd2d02c62e55a487e70c978
+      redirect: sha256:8bec2f41a7431722f156d6447bd13c9dfe5d54fedd771566b531661d1ee11e82
+      auth: sha256:f4e2964249d4c3679807ae5d315b34831e0bbdf7970119da830b74f42f8fd65c
+    migration_hashes:
+      url-service:
+        - bf95de7e84d91373163990e8513c686fc9b410e2d9dc0774d0f6dc5f438fe946
+        - 0f60eacb4e2db5f7ba41ca4a036c38b83b716253c861e3cb147a0399f8296479
+      redirect-service:
+        - 8c041831066172f06ebc0704c03b45a7d0f69ae1ecad1b24fcbe1421f96ec2a2
+        - b3f72cd1ea6b0d1ff8b42e95ed83f84992212431dfbb269c270b5740f3cfc707
+      auth-service:
+        - 8493c6556006070bebf833b3a024c9b1fd0516954ad901a46b0f80a879163fa4
+    services: [url-service, redirect-service, auth-service]
+    hook_jobs:
+      - auth-service-migrate
+      - redirect-service-migrate
+      - url-service-migrate
+      - lynk-postsync-smoke
+    migration_query: >-
+      import postgres from 'postgres';
+      const sql = postgres(process.env.DATABASE_URL, { max: 1 });
+      try {
+        const rows = await sql.unsafe('SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at');
+        console.log(JSON.stringify(rows.map(({ id, hash, created_at }) => ({ id, hash, created_at }))));
+      } finally {
+        await sql.end();
+      }
+    smoke_script: >-
+      const endpoints = [
+        'http://url-service:3001/health/ready',
+        'http://redirect-service:3002/health/ready',
+        'http://auth-service:3004/health/ready'
+      ];
+      for (const endpoint of endpoints) {
+        const response = await fetch(endpoint, { signal: AbortSignal.timeout(3000) });
+        console.log(`GET ${endpoint} status=${response.status}`);
+        if (!response.ok) process.exitCode = 1;
+      }
+    sync_patch: >-
+      {"operation":{"initiatedBy":{"username":"ngqkhai"},"sync":{"revision":"87eb22600c545ac6952d472739b0091f5bd84281","prune":false,"syncStrategy":{"hook":{}}}}}
+    snapshot_before_path: /tmp/cp16-aws-demo-before.json
+    snapshot_after_path: /tmp/cp16-aws-demo-after.json
+    repository_root: '{{ playbook_dir }}/../..'
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Read Application and current controller state
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, '{{ app_namespace }}', -o, json]
+      register: current_application
+      changed_when: false
+
+    - name: Require the reviewed branch, exact seed revision, manual policy, and no active operation
+      ansible.builtin.assert:
+        that:
+          - (current_application.stdout | from_json).spec.source.targetRevision == 'aws-demo'
+          - (current_application.stdout | from_json).status.sync.revision == expected_revision
+          - (current_application.stdout | from_json).status.sync.status == 'OutOfSync'
+          - (current_application.stdout | from_json).status.health.status == 'Progressing'
+          - (current_application.stdout | from_json).status.resources | length == 12
+          - ((current_application.stdout | from_json).status.resources | map(attribute='status') | unique | list) == ['OutOfSync']
+          - (current_application.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (current_application.stdout | from_json).spec.syncPolicy.prune is not defined or not (current_application.stdout | from_json).spec.syncPolicy.prune
+          - (current_application.stdout | from_json).status.operationState is not defined
+        fail_msg: Live Application differs from reviewed CP16 preflight; do not run adoption sync.
+
+    - name: Recheck that Drizzle ledgers exactly match the pinned migration files
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - exec
+          - -n
+          - '{{ workload_namespace }}'
+          - 'deployment/{{ item }}'
+          - -c
+          - '{{ item }}'
+          - --
+          - node
+          - --input-type=module
+          - -e
+          - '{{ migration_query }}'
+      loop: '{{ services }}'
+      register: migration_ledgers
+      changed_when: false
+
+    - name: Require each database to have every migration already recorded
+      ansible.builtin.assert:
+        that:
+          - (item.stdout | from_json | map(attribute='hash') | list) == migration_hashes[item.item]
+        fail_msg: '{{ item.item }} migration ledger does not exactly match the pinned code; refusing to sync.'
+      loop: '{{ migration_ledgers.results }}'
+      loop_control:
+        label: '{{ item.item }}'
+
+    - name: Recheck the three current readiness endpoints
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - exec
+          - -n
+          - '{{ workload_namespace }}'
+          - deployment/url-service
+          - -c
+          - url-service
+          - --
+          - node
+          - --input-type=module
+          - -e
+          - '{{ smoke_script }}'
+      register: pre_sync_smoke
+      changed_when: false
+
+    - name: Capture the protected workload snapshot before adoption
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ snapshot_script }}']
+      register: snapshot_before
+      changed_when: false
+
+    - name: Save the secret-free snapshot on the controller for comparison
+      ansible.builtin.copy:
+        content: '{{ snapshot_before.stdout }}'
+        dest: '{{ snapshot_before_path }}'
+        mode: '0600'
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Server-side dry-run only the Argo Application sync operation
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - patch
+          - application
+          - aws-demo
+          - -n
+          - '{{ app_namespace }}'
+          - --type=merge
+          - --patch
+          - '{{ sync_patch }}'
+          - --dry-run=server
+          - -o
+          - name
+      changed_when: false
+
+    - name: Request a full hook-aware Argo sync with pruning explicitly disabled
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - patch
+          - application
+          - aws-demo
+          - -n
+          - '{{ app_namespace }}'
+          - --type=merge
+          - --patch
+          - '{{ sync_patch }}'
+      register: adoption_sync_request
+      changed_when: true
+
+    - name: Wait for this adoption operation to finish
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, '{{ app_namespace }}', -o, json]
+      register: operation_state
+      changed_when: false
+      retries: 60
+      delay: 10
+      until: >-
+        (operation_state.stdout | from_json).status.operationState is defined and
+        (operation_state.stdout | from_json).status.operationState.phase in ['Succeeded', 'Failed', 'Error']
+
+    - name: Require successful sync without automated policy or prune
+      ansible.builtin.assert:
+        that:
+          - (operation_state.stdout | from_json).status.operationState.phase == 'Succeeded'
+          - (operation_state.stdout | from_json).status.operationState.syncResult.revision == expected_revision
+          - (operation_state.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (operation_state.stdout | from_json).spec.syncPolicy.prune is not defined or not (operation_state.stdout | from_json).spec.syncPolicy.prune
+        fail_msg: Sync did not complete successfully; leave Application manual and inspect operation state.
+
+    - name: Wait for Synced and Healthy after PostSync smoke
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, '{{ app_namespace }}', -o, json]
+      register: healthy_application
+      changed_when: false
+      retries: 30
+      delay: 10
+      until: >-
+        (healthy_application.stdout | from_json).status.sync.status == 'Synced' and
+        (healthy_application.stdout | from_json).status.health.status == 'Healthy'
+
+    - name: Verify the exact release digests and succeeded PostSync smoke
+      ansible.builtin.command:
+        argv:
+          - '{{ status_script }}'
+          - '{{ expected_revision }}'
+          - '{{ release_sha }}'
+          - '{{ expected_digests.url }}'
+          - '{{ expected_digests.redirect }}'
+          - '{{ expected_digests.auth }}'
+      register: runtime_verification
+      changed_when: false
+
+    - name: Require every expected migration and smoke Job to have succeeded
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, job, '{{ item }}', -n, '{{ workload_namespace }}', -o, json]
+      loop: '{{ hook_jobs }}'
+      register: completed_hook_jobs
+      changed_when: false
+
+    - name: Assert successful migration/smoke hook Jobs
+      ansible.builtin.assert:
+        that:
+          - (item.stdout | from_json).status.succeeded | default(0) | int == 1
+      loop: '{{ completed_hook_jobs.results }}'
+      loop_control:
+        label: '{{ item.item }}'
+
+    - name: Require every tracked resource to carry an Argo annotation identity
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - get
+          - '{{ item.kind | lower }}'
+          - '{{ item.name }}'
+          - -n
+          - '{{ item.namespace }}'
+          - -o
+          - jsonpath={.metadata.annotations.argocd\.argoproj\.io/tracking-id}
+      loop: '{{ (healthy_application.stdout | from_json).status.resources }}'
+      register: resource_tracking_ids
+      changed_when: false
+
+    - name: Assert Argo has attached tracking IDs to the whole Application tree
+      ansible.builtin.assert:
+        that:
+          - item.stdout | length > 0
+          - item.stdout.startswith('aws-demo:')
+      loop: '{{ resource_tracking_ids.results }}'
+      loop_control:
+        label: '{{ item.item.kind }}/{{ item.item.name }}'
+
+    - name: Capture the protected workload snapshot after adoption
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ snapshot_script }}']
+      register: snapshot_after
+      changed_when: false
+
+    - name: Save the post-sync snapshot for comparison
+      ansible.builtin.copy:
+        content: '{{ snapshot_after.stdout }}'
+        dest: '{{ snapshot_after_path }}'
+        mode: '0600'
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Compare identities, digests, PVCs, and the expected hook set
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - '{{ repository_root }}/scripts/cd/compare_aws_demo_adoption.py'
+          - --before
+          - '{{ snapshot_before_path }}'
+          - --after
+          - '{{ snapshot_after_path }}'
+      delegate_to: localhost
+      become: false
+      register: protected_resource_comparison
+      changed_when: false
+
+    - name: Remove the temporary snapshots from the controller
+      ansible.builtin.file:
+        path: '{{ item }}'
+        state: absent
+      loop: ['{{ snapshot_before_path }}', '{{ snapshot_after_path }}']
+      delegate_to: localhost
+      become: false
+
+    - name: Report manual adoption result without secret values
+      ansible.builtin.debug:
+        msg:
+          operation: '{{ (healthy_application.stdout | from_json).status.operationState.phase }}'
+          sync: '{{ (healthy_application.stdout | from_json).status.sync.status }}'
+          health: '{{ (healthy_application.stdout | from_json).status.health.status }}'
+          revision: '{{ expected_revision }}'
+          prune: false
+          automated: false
+          runtime: '{{ runtime_verification.stdout }}'
+          workload_change: '{{ protected_resource_comparison.stdout }}'

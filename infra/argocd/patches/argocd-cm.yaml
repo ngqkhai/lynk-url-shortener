@@ -4,3 +4,44 @@ metadata:
   name: argocd-cm
 data:
   application.resourceTrackingMethod: annotation
+  resource.customizations.health.networking.k8s.io_Ingress: |
+    hs = { status = "Progressing", message = "Waiting for an accepted ingress route" }
+    if obj.spec == nil or obj.spec.rules == nil or #obj.spec.rules == 0 then
+      hs.status = "Degraded"
+      hs.message = "Ingress must declare at least one host rule"
+      return hs
+    end
+
+    -- K3s Traefik routes the stable EIP/DNS directly and does not publish a
+    -- status.loadBalancer address. External smoke tests verify the real route.
+    if obj.spec.ingressClassName == "traefik" then
+      for _, rule in ipairs(obj.spec.rules) do
+        if rule.host == nil or rule.host == "" or rule.http == nil or rule.http.paths == nil or #rule.http.paths == 0 then
+          hs.status = "Degraded"
+          hs.message = "Traefik ingress rule must include a host and HTTP path"
+          return hs
+        end
+        for _, path in ipairs(rule.http.paths) do
+          if path.backend == nil or path.backend.service == nil or path.backend.service.name == nil or path.backend.service.name == "" then
+            hs.status = "Degraded"
+            hs.message = "Traefik ingress path must target a named Service"
+            return hs
+          end
+        end
+      end
+      hs.status = "Healthy"
+      hs.message = "Traefik ingress rules and Service backends are configured; verify reachability with smoke tests"
+      return hs
+    end
+
+    if obj.status ~= nil and obj.status.loadBalancer ~= nil and obj.status.loadBalancer.ingress ~= nil then
+      for _, ingress in ipairs(obj.status.loadBalancer.ingress) do
+        if ingress.hostname ~= nil and ingress.hostname ~= "" or ingress.ip ~= nil and ingress.ip ~= "" then
+          hs.status = "Healthy"
+          hs.message = "Ingress has a load balancer address"
+          return hs
+        end
+      end
+    end
+    hs.message = "Waiting for a load balancer address"
+    return hs

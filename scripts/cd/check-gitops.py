@@ -27,8 +27,7 @@ def check():
     assert source['helm']['valueFiles'] == ['values-aws.yaml', 'values-aws-demo.yaml']
     assert spec['destination'] == {'server': server, 'namespace': 'lynk-aws'}
     policy = spec.get('syncPolicy', {})
-    assert 'automated' not in policy
-    assert policy.get('prune', False) is False and policy.get('selfHeal', False) is False
+    assert policy.get('automated') == {'selfHeal': True, 'prune': False}
     assert project['spec']['sourceRepos'] == [repo]
     assert project['spec']['destinations'] == [{'server': server, 'namespace': 'lynk-aws'}]
     assert project['spec']['clusterResourceWhitelist'] == []
@@ -43,7 +42,7 @@ def check():
 
     old_examples = [ROOT / 'gitops/argocd-application.yaml', ROOT / 'gitops/redis-application.yaml']
     assert not any(path.exists() for path in old_examples)
-    print('PASS: aws-demo Project and dedicated branch source contracts; manual sync, no prune (not a cluster health check)')
+    print('PASS: aws-demo Project and dedicated branch source contracts; self-heal enabled, prune disabled (not a cluster health check)')
 
 
 if __name__ == '__main__':

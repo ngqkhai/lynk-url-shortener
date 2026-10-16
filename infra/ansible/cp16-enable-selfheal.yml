@@ -1,0 +1,83 @@
+- name: Enable aws-demo self-heal after verified adoption while keeping prune disabled
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    expected_revision: 87eb22600c545ac6952d472739b0091f5bd84281
+    policy_patch: >-
+      {"spec":{"syncPolicy":{"automated":{"selfHeal":true,"prune":false},"syncOptions":["FailOnSharedResource=true"]}}}
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Re-read the live Application adoption gates immediately before policy change
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: application_before
+      changed_when: false
+
+    - name: Require completed sync, healthy workloads and PostSync smoke
+      ansible.builtin.assert:
+        that:
+          - (application_before.stdout | from_json).status.sync.revision == expected_revision
+          - (application_before.stdout | from_json).status.sync.status == 'Synced'
+          - (application_before.stdout | from_json).status.health.status == 'Healthy'
+          - (application_before.stdout | from_json).status.operationState.phase == 'Succeeded'
+          - (application_before.stdout | from_json).status.operationState.syncResult.resources | selectattr('name', 'equalto', 'lynk-postsync-smoke') | selectattr('hookPhase', 'equalto', 'Succeeded') | list | length == 1
+          - (application_before.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (application_before.stdout | from_json).spec.syncPolicy.prune is not defined or not (application_before.stdout | from_json).spec.syncPolicy.prune
+        fail_msg: Adoption gates changed; keep the Application manual and do not enable self-heal.
+
+    - name: Server-side dry-run only self-heal=true and prune=false policy fields
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - patch
+          - application
+          - aws-demo
+          - -n
+          - argocd
+          - --type=merge
+          - --patch
+          - '{{ policy_patch }}'
+          - --dry-run=server
+          - -o
+          - name
+      changed_when: false
+
+    - name: Apply the narrowly scoped self-heal policy with prune explicitly disabled
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - patch
+          - application
+          - aws-demo
+          - -n
+          - argocd
+          - --type=merge
+          - --patch
+          - '{{ policy_patch }}'
+      register: policy_change
+      changed_when: "'patched' in policy_change.stdout"
+
+    - name: Confirm self-heal is on, prune is off, and Application remains healthy
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: application_after
+      changed_when: false
+      retries: 12
+      delay: 5
+      until: >-
+        (application_after.stdout | from_json).spec.syncPolicy.automated.selfHeal | default(false) and
+        not ((application_after.stdout | from_json).spec.syncPolicy.automated.prune | default(false)) and
+        (application_after.stdout | from_json).status.sync.status == 'Synced' and
+        (application_after.stdout | from_json).status.health.status == 'Healthy'
+
+    - name: Report final adoption policy without secrets
+      ansible.builtin.debug:
+        msg:
+          source_revision: '{{ expected_revision }}'
+          sync: '{{ (application_after.stdout | from_json).status.sync.status }}'
+          health: '{{ (application_after.stdout | from_json).status.health.status }}'
+          self_heal: '{{ (application_after.stdout | from_json).spec.syncPolicy.automated.selfHeal }}'
+          prune: '{{ (application_after.stdout | from_json).spec.syncPolicy.automated.prune }}'

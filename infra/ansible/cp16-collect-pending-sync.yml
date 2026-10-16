@@ -1,0 +1,99 @@
+- name: Collect read-only evidence from the pending aws-demo adoption
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    snapshot_script: /opt/lynk/argocd-applications/snapshot-aws-demo-workloads.py
+    app_path: /tmp/cp16-aws-demo-application.json
+    after_path: /tmp/cp16-aws-demo-after.json
+    repository_root: '{{ playbook_dir }}/../..'
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Read Application operation and health state
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: application
+      changed_when: false
+
+    - name: Capture the protected workload snapshot after sync
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ snapshot_script }}']
+      register: snapshot_after
+      changed_when: false
+
+    - name: Read Argo tracking annotations from the live Application tree
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - get
+          - '{{ item.kind | lower }}'
+          - '{{ item.name }}'
+          - -n
+          - '{{ item.namespace }}'
+          - -o
+          - 'jsonpath={.metadata.annotations.argocd\.argoproj\.io/tracking-id}'
+      loop: '{{ (application.stdout | from_json).status.resources }}'
+      register: tracking_ids
+      changed_when: false
+
+    - name: Read Jobs and completion counts
+      ansible.builtin.command:
+        argv:
+          [
+            '{{ kubectl }}',
+            get,
+            jobs,
+            -n,
+            lynk-aws,
+            -o,
+            'custom-columns=NAME:.metadata.name,SUCCEEDED:.status.succeeded',
+            --no-headers,
+          ]
+      register: hook_jobs
+      changed_when: false
+
+    - name: Save evidence snapshots locally with restrictive permissions
+      ansible.builtin.copy:
+        content: '{{ item.content }}'
+        dest: '{{ item.path }}'
+        mode: '0600'
+      loop:
+        - { path: '{{ app_path }}', content: '{{ application.stdout }}' }
+        - { path: '{{ after_path }}', content: '{{ snapshot_after.stdout }}' }
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Summarize operation, resource tracking and hook Jobs
+      ansible.builtin.debug:
+        msg:
+          phase: '{{ (application.stdout | from_json).status.operationState.phase }}'
+          operation_message: '{{ (application.stdout | from_json).status.operationState.message }}'
+          sync: '{{ (application.stdout | from_json).status.sync.status }}'
+          health: '{{ (application.stdout | from_json).status.health.status }}'
+          target_revision: '{{ (application.stdout | from_json).status.sync.revision }}'
+          resources: '{{ (application.stdout | from_json).status.resources | map(attribute="kind") | zip((application.stdout | from_json).status.resources | map(attribute="name")) | list }}'
+          tracking_ids: '{{ tracking_ids.results | map(attribute="stdout") | list }}'
+          jobs: '{{ hook_jobs.stdout_lines }}'
+
+    - name: Compare protected workload identities and runtime after partial sync
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - '{{ repository_root }}/scripts/cd/compare_aws_demo_adoption.py'
+          - --before
+          - /tmp/cp16-aws-demo-before.json
+          - --after
+          - '{{ after_path }}'
+          - --allow-pending-hooks
+      delegate_to: localhost
+      become: false
+      register: protected_resource_comparison
+      changed_when: false
+      failed_when: false
+
+    - name: Report comparator result without secrets
+      ansible.builtin.debug:
+        var: protected_resource_comparison.stdout

@@ -75,6 +75,12 @@ def main():
 
     tracking = yaml.safe_load((OVERLAY / "patches/argocd-cm.yaml").read_text())
     assert tracking["data"]["application.resourceTrackingMethod"] == "annotation"
+    ingress_health = tracking["data"]["resource.customizations.health.networking.k8s.io_Ingress"]
+    assert 'obj.spec.ingressClassName == "traefik"' in ingress_health
+    assert "rule.http.paths" in ingress_health
+    assert "path.backend.service.name" in ingress_health
+    assert 'hs.status = "Healthy"' in ingress_health
+    assert "status.loadBalancer.ingress" in ingress_health
     namespace = yaml.safe_load((OVERLAY / "namespace.yaml").read_text())
     assert namespace["kind"] == "Namespace" and namespace["metadata"]["name"] == "argocd"
 

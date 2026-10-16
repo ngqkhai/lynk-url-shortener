@@ -14,12 +14,10 @@ def main():
     project = yaml.safe_load((ROOT / "gitops/aws-demo-project.yaml").read_text())
     policy = app["spec"].get("syncPolicy", {})
     assert app["spec"]["destination"]["namespace"] == "lynk-aws"
-    assert "automated" not in policy
-    assert not policy.get("prune", False)
-    assert not policy.get("selfHeal", False)
+    assert policy["automated"] == {"selfHeal": True, "prune": False}
     assert app["spec"]["source"]["targetRevision"] == "aws-demo"
     assert project["spec"]["clusterResourceWhitelist"] == []
-    print("PASS: aws-demo adoption remains manual, non-pruning and follows the dedicated deployment branch")
+    print("PASS: aws-demo follows its dedicated branch, self-heals drift and keeps pruning disabled")
 
 
 if __name__ == "__main__":

@@ -85,12 +85,16 @@ jobs:
           python3 scripts/cd/test_promotion_guard.py
           python3 scripts/cd/test_wait_argocd_status.py
           python3 scripts/cd/test_argocd_status_automation.py
+          python3 scripts/cd/test_compare_aws_demo_adoption.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-applications.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-application-aws-demo-branch.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-status.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/restore-aws-demo-single-source.yml --syntax-check
+          for playbook in infra/ansible/cp16-*.yml; do
+            ansible-playbook -i infra/ansible/inventory.yml "$playbook" --syntax-check
+          done
           python3 scripts/cd/test-workflow-gates.py
           python3 scripts/secrets/vault-bundle.py check
           python3 scripts/secrets/test-vault-bundle.py
