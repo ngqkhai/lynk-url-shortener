@@ -69,10 +69,32 @@
       "package_release": "skipped",
       "deploy": "skipped"
     },
-    "main_run": null,
-    "image_jobs_skipped": null,
-    "package_release_skipped": null,
-    "deploy_skipped": null,
+    "main_run": {
+      "run_id": "38937815997",
+      "head_sha": "6f35fa0c10485bf9b3a6045a24bf8420ad8bdee1",
+      "conclusion": "success",
+      "quality_jobs": {
+        "terraform": "success",
+        "image-inputs": "success",
+        "gitops": "success",
+        "infrastructure_helm": "success",
+        "deployment_mode": "success",
+        "resilience": "success",
+        "lint_test": "success"
+      },
+      "image_inputs": {
+        "build_images": false,
+        "matching_paths": [],
+        "reason": "no-image-input-changed"
+      },
+      "image_jobs_skipped": true,
+      "package_release_skipped": true,
+      "deploy_skipped": true,
+      "deployment_mode": "paused"
+    },
+    "image_jobs_skipped": true,
+    "package_release_skipped": true,
+    "deploy_skipped": true,
     "branch_evidence_update_run": {
       "run_id": "38936918397",
       "head_sha": "3e006efa3a05abd661ca3cdd4c352c12ba4fa102",
@@ -86,6 +108,19 @@
       },
       "reason_for_missing_base": "The preceding branch commit had been force-updated and was no longer fetched as a reachable ref.",
       "publisher": "skipped because event was not a main push"
+    },
+    "final_branch_run": {
+      "run_id": "38937383906",
+      "head_sha": "6f35fa0c10485bf9b3a6045a24bf8420ad8bdee1",
+      "conclusion": "success",
+      "all_quality_jobs": "success",
+      "image_inputs": {
+        "build_images": true,
+        "reason": "base-unavailable"
+      },
+      "publisher": "skipped because event was not a main push",
+      "package_release": "skipped",
+      "deploy": "skipped"
     }
   },
   "troubleshooting": [
