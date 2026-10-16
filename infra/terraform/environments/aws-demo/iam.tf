@@ -88,7 +88,7 @@ resource "aws_iam_role" "status" {
           "token.actions.githubusercontent.com:sub" = "repo:ngqkhai@92835482/lynk-url-shortener@1365808803:environment:aws-demo"
         }
       }
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
     }]
     Version = "2012-10-17"
@@ -106,7 +106,7 @@ resource "aws_iam_role_policy" "status" {
       Action   = "ssm:SendCommand"
       Effect   = "Allow"
       Resource = ["arn:aws:ec2:ap-southeast-1:231136241975:instance/${aws_instance.node.id}", "arn:aws:ssm:ap-southeast-1:231136241975:document/${aws_ssm_document.argocd_status.name}"]
-    }, {
+      }, {
       Action   = "ssm:GetCommandInvocation"
       Effect   = "Allow"
       Resource = "*"

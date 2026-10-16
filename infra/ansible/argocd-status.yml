@@ -1,0 +1,39 @@
+- name: Install the read-only Argo release status checker
+  hosts: lynk
+  gather_facts: false
+  vars:
+    status_script: '{{ playbook_dir }}/../scripts/cd/argocd-status.sh'
+    installed_script: /opt/lynk/bin/argocd-status.sh
+  tasks:
+    - name: Install the status checker with root-only execution rights
+      ansible.builtin.copy:
+        src: '{{ status_script }}'
+        dest: '{{ installed_script }}'
+        owner: root
+        group: root
+        mode: '0700'
+      register: status_script_copy
+
+    - name: Validate shell syntax on the target host
+      ansible.builtin.command:
+        argv: [/bin/bash, -n, '{{ installed_script }}']
+      changed_when: false
+
+    - name: Verify root ownership and restrictive mode
+      ansible.builtin.stat:
+        path: '{{ installed_script }}'
+      register: status_script_stat
+
+    - name: Require root-owned mode 0700 script
+      ansible.builtin.assert:
+        that:
+          - status_script_stat.stat.pw_name == 'root'
+          - status_script_stat.stat.gr_name == 'root'
+          - status_script_stat.stat.mode == '0700'
+
+    - name: Report the installed script state
+      ansible.builtin.debug:
+        msg:
+          changed: '{{ status_script_copy.changed }}'
+          owner: '{{ status_script_stat.stat.pw_name }}'
+          mode: '{{ status_script_stat.stat.mode }}'

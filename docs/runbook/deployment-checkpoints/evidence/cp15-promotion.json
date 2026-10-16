@@ -14,19 +14,24 @@
       "deploy": "skipped"
     },
     "latest_live_aws_state": {
-      "status": "not refreshed in CP15",
-      "last_observation_checkpoint": "CP13",
+      "status": "refreshed read-only in CP15",
+      "app_source_revision": "87eb22600c545ac6952d472739b0091f5bd84281",
       "app_sync": "OutOfSync",
       "app_health": "Progressing",
-      "helm_release_revision": 6,
-      "workload_changes_in_cp15": false
+      "application_deployments_ready": "3/3 at existing digests",
+      "redis_ready": "1/1",
+      "kafka_topic_job": "Succeeded",
+      "ingress_host": "lynk.codes",
+      "data_kafka_pvc": "Bound",
+      "migration_and_smoke_jobs_present": false,
+      "workload_mutations_in_cp15": false
     },
     "aws_sso": {
       "profile": "ngqkhai-dev",
       "operator_reported_reauthenticated": true,
-      "status": "blocked by endpoint connectivity",
-      "error": "Could not connect to https://oidc.ap-southeast-1.amazonaws.com/token",
-      "successful_aws_api_calls": 0
+      "status": "authenticated",
+      "account": "231136241975",
+      "successful_read_only_aws_calls": 10
     }
   },
   "planned_scope": {
@@ -40,7 +45,7 @@
   },
   "verification": {
     "plan_written_before_implementation": true,
-    "local_implementation": "prepared; AWS live work remains blocked",
+    "local_implementation": "implemented on checkpoint branch; AWS additive plan reviewed, not applied yet",
     "python_tests": {
       "promote_release": "passed (3)",
       "promotion_guard": "passed (4, including non-fast-forward race in temporary Git remote)",
@@ -50,17 +55,30 @@
     },
     "bash_syntax_and_python_compile": "passed",
     "git_diff_check": "passed",
-    "terraform_cli": "unavailable in local execution environment",
-    "terraform_plan": "blocked: AWS OIDC endpoint unreachable; live state was not read",
-    "ansible_syntax": "not run: ansible-playbook unavailable in local execution environment",
-    "aws_preflight_error": "Could not connect to oidc.ap-southeast-1.amazonaws.com/token",
+    "terraform": "1.16.6 with provider 6.69.1",
+    "terraform_state_list": "35 resource addresses",
+    "terraform_plan": {
+      "no_op": 32,
+      "create": [
+        "aws_iam_role.status",
+        "aws_iam_role_policy.status",
+        "aws_ssm_document.argocd_status"
+      ],
+      "update": 0,
+      "delete": 0,
+      "replace": 0,
+      "applied": false
+    },
+    "terraform_ci_initial_failure": "iam.tf formatting; corrected locally after run 38940759830",
+    "ansible_syntax": "pending new status installer playbook CI run",
+    "aws_preflight": "passed read-only; status role/document absent before plan",
     "ssm_status_document_applied": false,
     "application_spec_updated_live": false,
     "promotion_invoked": false,
     "deployment_invoked": false
   },
   "risks_and_gates": [
-    "Do not apply Terraform or update the live Application until AWS SSO is refreshed and the exact plan/live state is reviewed.",
+    "Apply the reviewed additive status resources only after the follow-up CI is green; then install the read-only helper and update only Application source references with workload snapshot equality.",
     "Do not enable LYNK_DEPLOY_MODE=argocd in CP15.",
     "Do not run a production promotion or Argo sync; CP17 is the real release checkpoint."
   ]

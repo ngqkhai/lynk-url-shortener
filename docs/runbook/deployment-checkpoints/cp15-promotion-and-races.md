@@ -4,7 +4,9 @@
 
 CI đã tạo release artifact theo source SHA và CP14 đã ngừng rebuild image khi chỉ đổi GitOps. Tuy nhiên Application live hiện đọc Helm chart và `values-aws-demo.yaml` từ một source revision cố định `87eb226…`. Một bot chỉ cập nhật digest file trên `main` sẽ không đổi desired state mà Argo đang đọc. Workflow deploy cũ dùng SSM `LynkDeploy` để gọi Helm trực tiếp; nó không có hợp đồng đọc trạng thái Argo, và IAM role có quyền S3 release + deploy. CP13 ghi nhận App còn manual, no-prune; lần compare khi đó là `OutOfSync/Progressing`, 12 resource, không có condition lỗi. CP15 cần xử lý các sự thật hiện tại lại trước khi tác động cluster.
 
-Main CI CP14 run `38937815997` thành công với `image-inputs=false`; matrix/package/deploy bị skip. Run cuối chỉ ghi lesson/evidence `38938724654` cũng thành công và không publish. `LYNK_DEPLOY_MODE=paused` và reviewer environment `aws-demo=ngqkhai` đã được xác nhận ở CP14. AWS CLI preflight đầu tiên báo token SSO hết hạn; sau khi người vận hành báo đã đăng nhập lại, lời gọi STS vẫn không tới được `oidc.ap-southeast-1.amazonaws.com/token` do endpoint/network không truy cập được. Vì vậy số API AWS thành công trong CP15 vẫn là 0. Trạng thái Argo/Helm/IAM chưa được làm mới; Terraform plan/apply và cập nhật Application live bị giữ lại.
+Main CI CP14 run `38937815997` thành công với `image-inputs=false`; matrix/package/deploy bị skip. Run cuối chỉ ghi lesson/evidence `38938724654` cũng thành công và không publish. CP15 branch run `38940759830` có GitOps, automation/Helm, lint/test và resilience thành công; Terraform job fail do `iam.tf` chưa qua `terraform fmt`. Sau khi người vận hành đăng nhập lại, STS xác nhận account `231136241975`. `LynkDeploy` Active v2; EC2 `i-03bb7dcb94ec8bd21` là `t3.medium` và SSM Online; status role/document chưa tồn tại. State bucket bật versioning, đủ bốn public-access-block flags, mã hóa AES256; state object có VersionId. GitHub gate vẫn `LYNK_DEPLOY_MODE=paused`, environment reviewer là `ngqkhai`.
+
+SSM read-only preflight thấy Application vẫn dùng chart revision `87eb226…`, sync `OutOfSync`, health `Progressing`; ba Deployment đều ready 1/1 với digest hiện có trong values file, Redis 1/1, Kafka topic Job thành công, ingress host `lynk.codes`, PVC `data-kafka-0` Bound. Chưa có migration hoặc PostSync smoke Job. Đây là trạng thái đọc thực tế trước thay đổi CP15; không có Argo sync nào chạy.
 
 ## Kiến thức nền
 
@@ -44,7 +46,7 @@ flowchart LR
   Revert --> Failed[Workflow stays failed]
 ```
 
-CP15 không bật mode `argocd` và không gọi sync production. Status waiter, rollback và race được kiểm thử bằng fake SSM/Git fixtures; live SSM document/role chỉ được tạo sau khi AWS preflight xác nhận state, ownership và không có drift ngoài dự kiến. Application spec có thể đổi sang multi-source qua một thao tác SSM/Ansible riêng, nhưng chỉ sau dry-run, giữ manual sync/no-prune và xác nhận workload snapshot bất biến.
+CP15 không bật mode `argocd` và không gọi sync production. Người học chọn từ chối release stale thay vì rebase: source SHA phải đúng main tip, rồi normal push bảo vệ cửa sổ race sau freshness check. Live SSM document/role chỉ được áp sau khi preflight xác nhận state, ownership và plan additive không đụng workload. Application spec chỉ đổi sang multi-source qua Ansible sau server-side dry-run, giữ manual sync/no-prune và so sánh workload snapshot trước/sau.
 
 ## Các phương án và đánh đổi
 
@@ -82,11 +84,13 @@ Application khai báo `sources` theo thứ tự: Helm chart và hook giữ ở c
 
 Khi status verification thất bại sau promotion, workflow chỉ thử `git revert` nếu `main` vẫn đúng tại promotion commit. Push revert là fast-forward bình thường. Dù revert thành công, job vẫn đỏ: Git desired state được khôi phục, nhưng điều đó không chứng minh runtime hoặc schema đã rollback. Nếu `main` đã tiến tiếp, workflow không ghi đè; operator cần xem xét trạng thái Git và Argo.
 
-Thay đổi chỉ được chuẩn bị trong workspace. Terraform CLI, Ansible CLI và AWS endpoint không khả dụng trong môi trường thực thi hiện tại, do đó Terraform plan, playbook syntax check và live Application update chưa được xác minh ở lượt này. Không có SSM command, Argo sync, image promotion hoặc thay đổi AWS nào được thực hiện.
+Terraform `1.16.6` cùng AWS provider `6.69.1` được dùng đúng lockfile. State list có 35 tài nguyên đang được quản lý. Terraform plan sau refresh ghi nhận 32 `no-op`, đúng ba `create` (`aws_iam_role.status`, `aws_iam_role_policy.status`, `aws_ssm_document.argocd_status`), không có update/delete/replace. `terraform fmt` phát hiện và sửa format của `iam.tf`; plan được giữ để áp dụng lại sau CI xanh và review lần cuối. Chưa apply.
+
+Thay đổi Application spec và cài status reader có playbook riêng: playbook cài script root-owned mode `0700`, kiểm tra cú pháp; playbook Application từ chối spec khác dự kiến, dry-run server-side, áp dụng duy nhất CR `Application`, đợi hai source revision, rồi yêu cầu snapshot workload trước/sau trùng nhau. Các playbook đã qua syntax check trong CI. Chưa chạy trên host ở thời điểm ghi nhận.
 
 ## Verification, troubleshooting và recovery
 
-Local Python tests đạt: release manifest validation và narrow file update (3 tests), freshness/allowlist/non-fast-forward race (4 tests), SSM visibility retry/terminal errors/deadline (4 tests), workflow graph/gates (6 tests), và GitOps source contract. `bash -n` và Python bytecode compilation của helper đạt; `git diff --check` sạch. `terraform fmt -check` không chạy được vì binary `terraform` không có. Ansible syntax check và AWS API checks cũng chưa chạy được. Đây là bằng chứng đúng với phạm vi local; không phải bằng chứng của remote plan hoặc deployment health.
+Local Python tests đạt: release manifest validation và narrow file update (3 tests), freshness/allowlist/non-fast-forward race (4 tests), SSM visibility retry/terminal errors/deadline (4 tests), workflow graph/gates (6 tests), và GitOps source contract. `bash -n`, Terraform format/validate và `git diff --check` đạt sau khi sửa format. CI run đầu `38940759830` thất bại duy nhất ở Terraform format; GitOps, automation/Helm, lint/test, deployment policy và image-input classifier thành công. Terraform plan trên state thật sau đó chỉ có ba resource additive như trên. Chưa có CI run sau commit sửa format; chưa apply hoặc chạy playbook.
 
 Nếu workflow thất bại ở freshness guard, release đã stale và cần chờ CI build trên source tip mới. Nếu thất bại ở SSM waiter do AccessDenied, cần sửa role/credentials thay vì retry command. Nếu timeout, tìm command ID và quan sát trạng thái invocation trước khi làm gì khác; không gửi command thứ hai mù quáng. Nếu rollback bị từ chối vì main đã tiến, không force-push hoặc reset; đối chiếu commit values với Argo source revisions và tạo một commit sửa có review. Terraform rollback chỉ có thể gỡ resources status-only sau khi xem plan; không xóa `LynkDeploy`, role deploy hoặc artifacts.
 

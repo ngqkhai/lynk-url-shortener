@@ -88,6 +88,7 @@ jobs:
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-applications.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-application-sources.yml --syntax-check
+          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-status.yml --syntax-check
           python3 scripts/cd/test-workflow-gates.py
           python3 scripts/secrets/vault-bundle.py check
           python3 scripts/secrets/test-vault-bundle.py
