@@ -96,8 +96,13 @@ class WorkflowGateTests(unittest.TestCase):
         self.assertIn('wait-argocd-status.py', '\n'.join(step.get('run', '') for step in promotion['steps']))
         rollback = next(step for step in promotion['steps'] if 'Restore desired values' in step.get('name', ''))
         self.assertIn('git revert --no-edit', rollback['run'])
-        self.assertIn('git push origin HEAD:main', rollback['run'])
+        self.assertIn('git push origin HEAD:aws-demo', rollback['run'])
         self.assertNotIn('--force', rollback['run'])
+        promotion_run = next(step['run'] for step in promotion['steps'] if step.get('id') == 'promotion')
+        self.assertIn('git push origin HEAD:aws-demo', promotion_run)
+        self.assertIn('git worktree add --detach /tmp/lynk-aws-demo origin/aws-demo', promotion_run)
+        self.assertIn('--chart-sha', promotion_run)
+        self.assertNotIn('git push origin HEAD:main', promotion_run)
 
 
 if __name__ == '__main__':

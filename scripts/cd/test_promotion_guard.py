@@ -4,9 +4,15 @@
 import subprocess
 import tempfile
 import unittest
+import os
 from pathlib import Path
 
-from promotion_guard import ALLOWED_PATH, require_fresh_source, require_only_values_path
+from promotion_guard import (
+    ALLOWED_PATH,
+    require_deployment_tree,
+    require_fresh_source,
+    require_only_values_path,
+)
 
 SHA = "a" * 40
 
@@ -27,6 +33,38 @@ class PromotionGuardTests(unittest.TestCase):
             require_only_values_path([ALLOWED_PATH, "README.md"])
         with self.assertRaisesRegex(ValueError, "exactly"):
             require_only_values_path([])
+
+    def test_deployment_branch_may_change_only_values_from_chart_pin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", str(root)], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(root), "config", "user.email", "test@example.invalid"], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "user.name", "Test"], check=True)
+            values = root / ALLOWED_PATH
+            values.parent.mkdir(parents=True)
+            values.write_text("baseline\n")
+            (root / "chart.yaml").write_text("pinned\n")
+            subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(root), "commit", "-m", "chart"], check=True, capture_output=True)
+            chart_sha = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+            values.write_text("promoted\n")
+            subprocess.run(["git", "-C", str(root), "commit", "-am", "promote"], check=True, capture_output=True)
+            deployment_sha = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+            previous_cwd = Path.cwd()
+            os.chdir(root)
+            try:
+                require_deployment_tree(chart_sha, deployment_sha)
+            finally:
+                os.chdir(previous_cwd)
+            (root / "chart.yaml").write_text("drift\n")
+            subprocess.run(["git", "-C", str(root), "commit", "-am", "chart drift"], check=True, capture_output=True)
+            drift_sha = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+            os.chdir(root)
+            try:
+                with self.assertRaisesRegex(ValueError, "pinned chart"):
+                    require_deployment_tree(chart_sha, drift_sha)
+            finally:
+                os.chdir(previous_cwd)
 
     def test_non_fast_forward_push_rejects_check_to_push_race(self):
         with tempfile.TemporaryDirectory() as directory:

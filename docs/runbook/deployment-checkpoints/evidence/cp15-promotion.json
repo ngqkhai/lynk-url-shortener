@@ -14,7 +14,7 @@
       "deploy": "skipped"
     },
     "latest_live_aws_state": {
-      "status": "refreshed read-only in CP15",
+      "status": "recovered after CP15 compatibility test",
       "app_source_revision": "87eb22600c545ac6952d472739b0091f5bd84281",
       "app_sync": "OutOfSync",
       "app_health": "Progressing",
@@ -23,6 +23,7 @@
       "kafka_topic_job": "Succeeded",
       "ingress_host": "lynk.codes",
       "data_kafka_pvc": "Bound",
+      "comparison_conditions_after_recovery": null,
       "migration_and_smoke_jobs_present": false,
       "workload_mutations_in_cp15": false
     },
@@ -31,13 +32,13 @@
       "operator_reported_reauthenticated": true,
       "status": "authenticated",
       "account": "231136241975",
-      "successful_read_only_aws_calls": 10
+      "successful_read_only_aws_calls": "multiple; no exact aggregate count recorded"
     }
   },
   "planned_scope": {
-    "multi_source_application": true,
+    "multi_source_application": "attempted then rejected by deployed Argo CD v3.5.5 same-repository revision limitation",
     "chart_revision_remains_pinned": "87eb22600c545ac6952d472739b0091f5bd84281",
-    "environment_values_source": "main",
+    "promotion_topology": "dedicated aws-demo branch selected by user; seeded at the pinned chart commit",
     "promotion_file_allowlist": ["infra/k8s/helm/lynk-services/values-aws-demo.yaml"],
     "promotion_token": "GITHUB_TOKEN with contents:write scoped to the promotion job",
     "deployment_mode_must_remain_paused": true,
@@ -45,18 +46,19 @@
   },
   "verification": {
     "plan_written_before_implementation": true,
-    "local_implementation": "implemented on checkpoint branch; AWS additive plan reviewed, not applied yet",
+    "local_implementation": "promotion guard/status plumbing and dedicated-branch topology implemented; promotion execution remains intentionally paused",
     "python_tests": {
       "promote_release": "passed (3)",
-      "promotion_guard": "passed (4, including non-fast-forward race in temporary Git remote)",
+      "promotion_guard": "passed (5, including pinned-chart drift and non-fast-forward race in temporary Git remote)",
       "ssm_status_waiter": "passed (4)",
       "workflow_gates": "passed (6)",
-      "gitops_contract": "passed"
+      "gitops_contract": "dedicated aws-demo branch contract passed",
+      "status_automation_path": "passed; branch cutover playbook syntax checked"
     },
     "bash_syntax_and_python_compile": "passed",
     "git_diff_check": "passed",
     "terraform": "1.16.6 with provider 6.69.1",
-    "terraform_state_list": "35 resource addresses",
+    "terraform_state_addresses": "35 before apply; 38 after adding three status resources",
     "terraform_plan": {
       "no_op": 32,
       "create": [
@@ -67,18 +69,29 @@
       "update": 0,
       "delete": 0,
       "replace": 0,
-      "applied": false
+      "applied": true,
+      "apply_result": "3 added, 0 changed, 0 destroyed"
     },
     "terraform_ci_initial_failure": "iam.tf formatting; corrected locally after run 38940759830",
-    "ansible_syntax": "pending new status installer playbook CI run",
-    "aws_preflight": "passed read-only; status role/document absent before plan",
-    "ssm_status_document_applied": false,
-    "application_spec_updated_live": false,
+    "ansible_syntax": "passed in CI run 38942335764 and local target playbooks",
+    "aws_preflight": "passed; status role/document created and verified read-only",
+    "ssm_status_document_applied": true,
+    "ssm_status_role_arn": "arn:aws:iam::231136241975:role/lynk-github-argocd-status",
+    "status_helper_installed": "root:root mode 0700, target bash -n passed",
+    "multi_source_compare_error": "cannot reference a different revision of the same repository",
+    "application_spec_update_attempted_and_recovered": true,
+    "application_spec_current": "single source targetRevision aws-demo; Argo resolved current branch tip 87eb22600c545ac6952d472739b0091f5bd84281",
+    "recovery_snapshot_equality": true,
+    "branch_cutover_playbook": "server-side dry-run and JSON patch changed only /spec/source/targetRevision; Argo comparison valid, manual sync/no-prune retained, workloads unchanged",
+    "initial_cutover_attempt": "server-side apply dry-run rejected because kubectl-patch owns /spec/source/targetRevision; no Application change occurred; replaced with one-field JSON Patch",
+    "recovery_sync_invoked": false,
+    "aws_demo_branch_created_at_chart_pin": true,
+    "github_status_role_arn_variable_configured": true,
     "promotion_invoked": false,
     "deployment_invoked": false
   },
   "risks_and_gates": [
-    "Apply the reviewed additive status resources only after the follow-up CI is green; then install the read-only helper and update only Application source references with workload snapshot equality.",
+    "Keep delivery paused; no promotion or Argo sync has been invoked.",
     "Do not enable LYNK_DEPLOY_MODE=argocd in CP15.",
     "Do not run a production promotion or Argo sync; CP17 is the real release checkpoint."
   ]

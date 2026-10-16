@@ -88,8 +88,9 @@ jobs:
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-applications.yml --syntax-check
-          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-application-sources.yml --syntax-check
+          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-application-aws-demo-branch.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-status.yml --syntax-check
+          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/restore-aws-demo-single-source.yml --syntax-check
           python3 scripts/cd/test-workflow-gates.py
           python3 scripts/secrets/vault-bundle.py check
           python3 scripts/secrets/test-vault-bundle.py
@@ -293,17 +294,22 @@ jobs:
         id: promotion
         env:
           SOURCE_SHA: ${{ github.sha }}
+          CHART_SHA: 87eb22600c545ac6952d472739b0091f5bd84281
         run: |
           git fetch origin main
           MAIN_SHA="$(git rev-parse origin/main)"
-          python3 scripts/cd/promotion_guard.py --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA"
-          git checkout --detach "$SOURCE_SHA"
-          # Apply the verified manifest to the exact source tree after the freshness guard.
-          python3 scripts/cd/promote_release.py --release-json release-artifact/extracted/release.json --values infra/k8s/helm/lynk-services/values-aws-demo.yaml --expected-sha "$SOURCE_SHA"
+          python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA"
+          git fetch origin aws-demo
+          git worktree add --detach /tmp/lynk-aws-demo origin/aws-demo
+          cd /tmp/lynk-aws-demo
+          DEPLOYMENT_BASE="$(git rev-parse HEAD)"
+          python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --chart-sha "$CHART_SHA" --deployment-sha "$DEPLOYMENT_BASE"
+          python3 "$GITHUB_WORKSPACE/scripts/cd/promote_release.py" --release-json "$GITHUB_WORKSPACE/release-artifact/extracted/release.json" --values infra/k8s/helm/lynk-services/values-aws-demo.yaml --expected-sha "$SOURCE_SHA"
           git add -- infra/k8s/helm/lynk-services/values-aws-demo.yaml
-          python3 scripts/cd/promotion_guard.py --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --check-staged
+          python3 "$GITHUB_WORKSPACE/scripts/cd/promotion_guard.py" --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --chart-sha "$CHART_SHA" --deployment-sha "$DEPLOYMENT_BASE" --check-staged
           if git diff --cached --quiet; then
-            echo "promotion_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+            echo "promotion_sha=$DEPLOYMENT_BASE" >> "$GITHUB_OUTPUT"
+            echo "promotion_created=false" >> "$GITHUB_OUTPUT"
             echo "Promotion already contains these exact digests."
             exit 0
           fi
@@ -312,8 +318,9 @@ jobs:
           git fetch origin main
           CURRENT_MAIN="$(git rev-parse origin/main)"
           python3 scripts/cd/promotion_guard.py --source-sha "$SOURCE_SHA" --main-sha "$CURRENT_MAIN"
-          git push origin HEAD:main
+          git push origin HEAD:aws-demo
           echo "promotion_sha=$PROMOTION_SHA" >> "$GITHUB_OUTPUT"
+          echo "promotion_created=true" >> "$GITHUB_OUTPUT"
       - name: Configure least-privilege AWS status role
         if: steps.promotion.outputs.promotion_sha != ''
         uses: aws-actions/configure-aws-credentials@v4
@@ -329,18 +336,21 @@ jobs:
           AWS_REGION: ap-southeast-1
         run: python3 scripts/cd/wait-argocd-status.py
       - name: Restore desired values if status verification failed (deployment remains failed)
-        if: failure() && steps.promotion.outputs.promotion_sha != '' && steps.promotion.outputs.promotion_sha != github.sha
+        if: failure() && steps.promotion.outputs.promotion_created == 'true'
         env:
           PROMOTION_SHA: ${{ steps.promotion.outputs.promotion_sha }}
           SOURCE_SHA: ${{ github.sha }}
         run: |
-          git fetch origin main
+          git fetch origin aws-demo main
+          git worktree add --detach /tmp/lynk-aws-demo-rollback origin/aws-demo
+          cd /tmp/lynk-aws-demo-rollback
+          CURRENT_DEPLOYMENT="$(git rev-parse HEAD)"
           CURRENT_MAIN="$(git rev-parse origin/main)"
-          if [ "$CURRENT_MAIN" != "$PROMOTION_SHA" ]; then
-            echo "Cannot safely revert: main advanced to $CURRENT_MAIN; operator reconciliation required." >&2
+          if [ "$CURRENT_DEPLOYMENT" != "$PROMOTION_SHA" ] || [ "$CURRENT_MAIN" != "$SOURCE_SHA" ]; then
+            echo "Cannot safely revert: aws-demo or main advanced; operator reconciliation required." >&2
             exit 1
           fi
           git checkout --detach "$PROMOTION_SHA"
           git revert --no-edit "$PROMOTION_SHA"
-          git push origin HEAD:main
+          git push origin HEAD:aws-demo
           echo "Desired values were reverted; deployment verification remains failed." >&2

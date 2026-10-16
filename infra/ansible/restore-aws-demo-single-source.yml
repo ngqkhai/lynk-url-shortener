@@ -1,0 +1,127 @@
+- name: Restore aws-demo Application after an incompatible multi-source comparison
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    snapshot_script: /opt/lynk/argocd-applications/snapshot-aws-demo-workloads.py
+    chart_revision: 87eb22600c545ac6952d472739b0091f5bd84281
+    restore_patch: >-
+      [
+        {"op":"remove","path":"/spec/sources"},
+        {"op":"add","path":"/spec/source","value":{
+          "repoURL":"https://github.com/ngqkhai/lynk-url-shortener.git",
+          "targetRevision":"87eb22600c545ac6952d472739b0091f5bd84281",
+          "path":"infra/k8s/helm/lynk-services",
+          "helm":{"releaseName":"lynk-services","valueFiles":["values-aws.yaml","values-aws-demo.yaml"]}
+        }}
+      ]
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Read the failed multi-source Application spec
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: failed_application
+      changed_when: false
+
+    - name: Require the expected CP15 sources and manual sync before recovery
+      ansible.builtin.assert:
+        that:
+          - (failed_application.stdout | from_json).spec.sources | length == 2
+          - (failed_application.stdout | from_json).spec.sources[0].targetRevision == chart_revision
+          - (failed_application.stdout | from_json).spec.sources[1].ref == 'values'
+          - (failed_application.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (failed_application.stdout | from_json).status.sync.status == 'Unknown'
+
+    - name: Capture workload state before restoring the Application spec
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ snapshot_script }}']
+      register: recovery_snapshot_before
+      changed_when: false
+
+    - name: Server-side dry-run only the JSON patch on the Application CR
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - patch
+          - application
+          - aws-demo
+          - -n
+          - argocd
+          - --type=json
+          - --patch
+          - '{{ restore_patch }}'
+          - --dry-run=server
+          - -o
+          - name
+      changed_when: false
+
+    - name: Restore the exact pinned single-source spec without syncing workloads
+      ansible.builtin.command:
+        argv:
+          - '{{ kubectl }}'
+          - patch
+          - application
+          - aws-demo
+          - -n
+          - argocd
+          - --type=json
+          - --patch
+          - '{{ restore_patch }}'
+      register: application_restore
+      changed_when: true
+
+    - name: Wait for Argo to compare the restored chart revision
+      ansible.builtin.command:
+        argv:
+          [
+            '{{ kubectl }}',
+            get,
+            application,
+            aws-demo,
+            -n,
+            argocd,
+            -o,
+            'jsonpath={.status.sync.status} {.status.sync.revision}',
+          ]
+      register: restored_revision
+      changed_when: false
+      retries: 30
+      delay: 4
+      until: "'OutOfSync' in restored_revision.stdout or 'Synced' in restored_revision.stdout"
+
+    - name: Verify the restored source and paused reconciliation policy
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: restored_application
+      changed_when: false
+
+    - name: Require the original source, no automation, and a valid compare state
+      ansible.builtin.assert:
+        that:
+          - (restored_application.stdout | from_json).spec.source.targetRevision == chart_revision
+          - (restored_application.stdout | from_json).spec.sources is not defined
+          - (restored_application.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (restored_application.stdout | from_json).spec.syncPolicy.prune is not defined or not (restored_application.stdout | from_json).spec.syncPolicy.prune
+          - (restored_application.stdout | from_json).status.sync.status in ['OutOfSync', 'Synced']
+          - chart_revision in restored_revision.stdout
+
+    - name: Capture workload state after restoring the Application spec
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ snapshot_script }}']
+      register: recovery_snapshot_after
+      changed_when: false
+
+    - name: Confirm recovery changed only the Application source fields
+      ansible.builtin.assert:
+        that:
+          - recovery_snapshot_before.stdout == recovery_snapshot_after.stdout
+
+    - name: Report the recovered compare state without secret data
+      ansible.builtin.debug:
+        msg:
+          application_revision: '{{ restored_revision.stdout }}'
+          sync_status: '{{ (restored_application.stdout | from_json).status.sync.status }}'
+          workloads_changed: false
+          sync_invoked: false

@@ -20,7 +20,8 @@ python3 - "$app" "$values_revision" <<'PY'
 import json, sys
 app = json.loads(sys.argv[1])
 expected = sys.argv[2]
-revisions = app.get('status', {}).get('sync', {}).get('revisions', [])
+sync = app.get('status', {}).get('sync', {})
+revisions = sync.get('revisions') or ([sync['revision']] if sync.get('revision') else [])
 if expected not in revisions:
     raise SystemExit('Argo has not observed the expected values revision')
 if app.get('status', {}).get('sync', {}).get('status') != 'Synced':

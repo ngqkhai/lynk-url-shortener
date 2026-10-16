@@ -5,18 +5,15 @@ metadata:
   namespace: argocd
 spec:
   project: aws-demo
-  sources:
-    - repoURL: https://github.com/ngqkhai/lynk-url-shortener.git
-      targetRevision: 87eb22600c545ac6952d472739b0091f5bd84281
-      path: infra/k8s/helm/lynk-services
-      helm:
-        releaseName: lynk-services
-        valueFiles:
-          - values-aws.yaml
-          - $values/infra/k8s/helm/lynk-services/values-aws-demo.yaml
-    - repoURL: https://github.com/ngqkhai/lynk-url-shortener.git
-      targetRevision: main
-      ref: values
+  source:
+    repoURL: https://github.com/ngqkhai/lynk-url-shortener.git
+    targetRevision: aws-demo
+    path: infra/k8s/helm/lynk-services
+    helm:
+      releaseName: lynk-services
+      valueFiles:
+        - values-aws.yaml
+        - values-aws-demo.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: lynk-aws

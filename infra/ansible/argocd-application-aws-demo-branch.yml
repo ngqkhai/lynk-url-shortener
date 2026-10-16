@@ -1,0 +1,169 @@
+- name: Point aws-demo Argo Application at its dedicated promotion branch
+  hosts: lynk
+  gather_facts: false
+  vars:
+    kubectl: /usr/local/bin/kubectl
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    gitops_source_dir: '{{ playbook_dir }}/../../gitops'
+    snapshot_source: '{{ playbook_dir }}/../../scripts/cd/snapshot-aws-demo-workloads.py'
+    manifest_dir: /opt/lynk/argocd-applications
+    chart_revision: 87eb22600c545ac6952d472739b0091f5bd84281
+    source_patch: '[{"op":"replace","path":"/spec/source/targetRevision","value":"aws-demo"}]'
+  environment:
+    KUBECONFIG: '{{ kubeconfig }}'
+  tasks:
+    - name: Read only the existing aws-demo Application
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: existing_application
+      changed_when: false
+
+    - name: Require the expected pinned single-source Application before branch cutover
+      ansible.builtin.assert:
+        that:
+          - (existing_application.stdout | from_json).spec.project == 'aws-demo'
+          - (existing_application.stdout | from_json).spec.source.targetRevision == chart_revision
+          - (existing_application.stdout | from_json).spec.destination.namespace == 'lynk-aws'
+          - (existing_application.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (existing_application.stdout | from_json).spec.syncPolicy.prune is not defined or not (existing_application.stdout | from_json).spec.syncPolicy.prune
+        fail_msg: Refusing to update an unexpected Application or enable workload delivery.
+
+    - name: Ensure the protected local manifest directory exists
+      ansible.builtin.file:
+        path: '{{ manifest_dir }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy only the reviewed Application and secret-free snapshot helper
+      ansible.builtin.copy:
+        src: '{{ item.src }}'
+        dest: '{{ item.dest }}'
+        owner: root
+        group: root
+        mode: '{{ item.mode }}'
+      loop:
+        - {
+            src: '{{ gitops_source_dir }}/aws-demo-application.yaml',
+            dest: '{{ manifest_dir }}/aws-demo-application.yaml',
+            mode: '0644',
+          }
+        - {
+            src: '{{ snapshot_source }}',
+            dest: '{{ manifest_dir }}/snapshot-aws-demo-workloads.py',
+            mode: '0700',
+          }
+
+    - name: Capture a secret-free workload snapshot before source change
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ manifest_dir }}/snapshot-aws-demo-workloads.py']
+      register: snapshot_before
+      changed_when: false
+
+    - name: Re-read the Application immediately before the field patch
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: pre_patch_application
+      changed_when: false
+
+    - name: Refuse a stale or unexpected Application field manager state
+      ansible.builtin.assert:
+        that:
+          - (pre_patch_application.stdout | from_json).spec.source.targetRevision == chart_revision
+          - (pre_patch_application.stdout | from_json).spec.sources is not defined
+          - (pre_patch_application.stdout | from_json).spec.syncPolicy.automated is not defined
+        fail_msg: Application source changed since preflight; do not apply the branch cutover.
+
+    - name: Server-side dry-run the one-field Application JSON patch
+      ansible.builtin.command:
+        argv:
+          [
+            '{{ kubectl }}',
+            patch,
+            application,
+            aws-demo,
+            -n,
+            argocd,
+            --type=json,
+            --patch,
+            '{{ source_patch }}',
+            --dry-run=server,
+            -o,
+            name,
+          ]
+      changed_when: false
+
+    - name: Patch only spec.source.targetRevision on the Application
+      ansible.builtin.command:
+        argv:
+          [
+            '{{ kubectl }}',
+            patch,
+            application,
+            aws-demo,
+            -n,
+            argocd,
+            --type=json,
+            --patch,
+            '{{ source_patch }}',
+          ]
+      register: application_patch
+      changed_when: true
+
+    - name: Wait for Argo to resolve the aws-demo branch revision without syncing
+      ansible.builtin.command:
+        argv:
+          [
+            '{{ kubectl }}',
+            get,
+            application,
+            aws-demo,
+            -n,
+            argocd,
+            -o,
+            'jsonpath={.status.sync.revision}',
+          ]
+      register: observed_revision
+      changed_when: false
+      retries: 30
+      delay: 4
+      until: observed_revision.stdout is match('^[0-9a-f]{40}$')
+
+    - name: Verify branch source, valid comparison and manual no-prune policy
+      ansible.builtin.command:
+        argv: ['{{ kubectl }}', get, application, aws-demo, -n, argocd, -o, json]
+      register: updated_application
+      changed_when: false
+
+    - name: Assert single-source branch revision and paused reconciliation
+      ansible.builtin.assert:
+        that:
+          - (updated_application.stdout | from_json).spec.source.targetRevision == 'aws-demo'
+          - (updated_application.stdout | from_json).spec.sources is not defined
+          - (updated_application.stdout | from_json).status.sync.revision is match('^[0-9a-f]{40}$')
+          - (updated_application.stdout | from_json).status.sync.status in ['OutOfSync', 'Synced']
+          - (updated_application.stdout | from_json).spec.syncPolicy.automated is not defined
+          - (updated_application.stdout | from_json).spec.syncPolicy.prune is not defined or not (updated_application.stdout | from_json).spec.syncPolicy.prune
+          - "'ComparisonError' not in ((updated_application.stdout | from_json).status.conditions | default([]) | map(attribute='type') | list)"
+
+    - name: Capture workload snapshot after changing the Application source
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, '{{ manifest_dir }}/snapshot-aws-demo-workloads.py']
+      register: snapshot_after
+      changed_when: false
+
+    - name: Confirm adoption source change did not mutate workloads
+      ansible.builtin.assert:
+        that:
+          - snapshot_before.stdout == snapshot_after.stdout
+
+    - name: Report branch adoption without exposing secret data
+      ansible.builtin.debug:
+        msg:
+          observed_revision: '{{ observed_revision.stdout }}'
+          sync_status: '{{ (updated_application.stdout | from_json).status.sync.status }}'
+          manual_sync: true
+          prune: false
+          workloads_changed: false
+          sync_invoked: false
