@@ -1,0 +1,113 @@
+{
+  "checkpoint": "CP14",
+  "branch": "checkpoint/cp14-ci-dependency-graph",
+  "baseline": {
+    "main_commit": "32b33984b8542c858d046a9ac8fe0942daf476fc",
+    "run_id": "38935168448",
+    "conclusion": "success",
+    "all_quality_checks": "passed",
+    "published_services": ["url", "redirect", "auth"],
+    "package_release": "success; archive SHA256 verified; all three anonymous image pulls passed",
+    "deploy": "skipped because LYNK_DEPLOY_MODE=paused",
+    "release_commit": "32b33984b8542c858d046a9ac8fe0942daf476fc",
+    "release_image_digests": {
+      "url": "sha256:4b96b700b575d1b8f7ba3e1bf12827188dada09bfe10bad7b997bb6edf0b9214",
+      "redirect": "sha256:071bd05aeb85a37eb8145d096985387b32df6e6175ec46f0cd55c16db3ea3166",
+      "auth": "sha256:8ceaef9c1a018f09d55c66cd7a5a1374b032b2e3c03430db6dfad9506f2680ce"
+    },
+    "interpretation": "The commit changed chart/GitOps/CI inputs but no service image inputs. The old workflow still published all three images, demonstrating avoidable builds."
+  },
+  "image_inputs": {
+    "all_services": [
+      "root package*.json and tsconfig*.json",
+      ".dockerignore",
+      "packages/shared/**"
+    ],
+    "service_scoped": [
+      "services/url-service/**",
+      "services/redirect-service/**",
+      "services/auth-service/**"
+    ],
+    "unrelated_examples": ["gitops/**", "infra/**", "docs/**", "scripts/cd/**"],
+    "unknown_base_behavior": "build all three images",
+    "shared_dependency_behavior": "build all three images"
+  },
+  "implementation": {
+    "classifier": "scripts/cd/image_build_inputs.py",
+    "tests": "scripts/cd/test_image_build_inputs.py",
+    "gate": "build-and-push requires all quality jobs and image-inputs.build_images == true on main push",
+    "source_tag": "github.sha",
+    "artifact_transport": "one digest JSON per service, merged by package-release",
+    "all_quality_jobs_remain_unconditional": true
+  },
+  "local_verification": {
+    "classifier_tests": "8 passed",
+    "workflow_graph_tests": "5 passed",
+    "npm_lint": "passed",
+    "npm_format_check": "passed",
+    "npm_test": "passed; integration tests skipped unless RUN_INTEGRATION_TESTS is enabled",
+    "classifier_on_cp13_diff": {
+      "base": "1e9fbda91639f684aefd73fe111c82c90d705b1f",
+      "head": "32b33984b8542c858d046a9ac8fe0942daf476fc",
+      "build_images": false,
+      "matching_paths": []
+    },
+    "missing_base_fixture": "build_images=true"
+  },
+  "ci": {
+    "branch_run": {
+      "run_id": "38936380831",
+      "head_sha": "83a7269307f39f3b55e6c2c747a2707931874d4c",
+      "conclusion": "success",
+      "all_quality_jobs": "success",
+      "image_inputs": {
+        "build_images": true,
+        "reason": "base-unavailable"
+      },
+      "reason_for_missing_base": "First push creating the branch has all-zero before SHA; full history cannot contain that object.",
+      "publisher": "skipped because event was not a main push",
+      "package_release": "skipped",
+      "deploy": "skipped"
+    },
+    "main_run": null,
+    "image_jobs_skipped": null,
+    "package_release_skipped": null,
+    "deploy_skipped": null,
+    "branch_evidence_update_run": {
+      "run_id": "38936918397",
+      "head_sha": "3e006efa3a05abd661ca3cdd4c352c12ba4fa102",
+      "conclusion": "failure",
+      "failure": "Lint & Test -> Format check",
+      "cause": "CP14 evidence JSON was edited after the last Prettier run.",
+      "resolution": "Formatted the evidence JSON and reran full CI.",
+      "image_inputs": {
+        "build_images": true,
+        "reason": "base-unavailable"
+      },
+      "reason_for_missing_base": "The preceding branch commit had been force-updated and was no longer fetched as a reachable ref.",
+      "publisher": "skipped because event was not a main push"
+    }
+  },
+  "troubleshooting": [
+    {
+      "symptom": "Workflow graph test expected deploy to directly need the image matrix",
+      "cause": "The actual dependency is transitive through package-release",
+      "resolution": "Asserted image matrix -> package-release -> deploy, matching the actual workflow"
+    },
+    {
+      "symptom": "Prettier reported workflow and lesson formatting",
+      "cause": "New YAML list wrapping and Markdown table formatting did not match repository style",
+      "resolution": "Formatted the two files and reran repository-wide format check"
+    },
+    {
+      "run": "38936918397",
+      "symptom": "Repository-wide format check failed on the CP14 JSON evidence file.",
+      "cause": "Evidence was updated after the previous format check.",
+      "resolution": "Ran Prettier on the evidence file; a new full CI run is required."
+    }
+  ],
+  "limitations": [
+    "The classifier deliberately builds all three images when any app image input changes; per-service selective builds are deferred to avoid a more complex artifact matrix.",
+    "The CP13 baseline digest evidence comes from a real GitHub main release artifact; CP14 delivery remains paused and does not deploy those images."
+  ]
+}

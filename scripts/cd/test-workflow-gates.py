@@ -45,7 +45,26 @@ class WorkflowGateTests(unittest.TestCase):
             config = CI['jobs'][job]
             self.assertNotIn('if', config)
             self.assertNotIn('needs', config)
-        self.assertNotIn('deployment-policy', CI['jobs']['build-and-push']['needs'])
+        self.assertNotIn('needs', CI['jobs']['image-inputs'])
+
+    def test_image_publication_depends_on_source_paths_and_all_quality_jobs(self):
+        detection = CI['jobs']['image-inputs']
+        publisher = CI['jobs']['build-and-push']
+        self.assertEqual(detection['outputs']['build_images'], '${{ steps.classify.outputs.build_images }}')
+        self.assertEqual(detection['steps'][0]['with']['fetch-depth'], 0)
+        for job in ('lint-and-test', 'gateway-e2e', 'automation-checks', 'gitops-checks', 'terraform-checks', 'image-inputs'):
+            self.assertIn(job, publisher['needs'])
+        self.assertIn("github.ref == 'refs/heads/main'", publisher['if'])
+        self.assertIn("github.event_name == 'push'", publisher['if'])
+        self.assertIn("needs.image-inputs.outputs.build_images == 'true'", publisher['if'])
+
+        package = CI['jobs']['package-release']
+        self.assertEqual(package['needs'], 'build-and-push')
+        self.assertIn('package-release', CI['jobs']['deploy']['needs'])
+        build_step = next(step for step in publisher['steps'] if step.get('uses', '').startswith('docker/build-push-action@'))
+        self.assertIn('${{ github.sha }}', build_step['with']['tags'])
+        digest_step = next(step for step in publisher['steps'] if step.get('name') == 'Record digest')
+        self.assertEqual(digest_step['env']['DIGEST'], '${{ steps.image.outputs.digest }}')
 
     def test_manual_and_reusable_deploy_cannot_skip_policy(self):
         self.assertIn('deployment-policy', CI['jobs']['deploy']['needs'])

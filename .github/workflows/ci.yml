@@ -80,6 +80,7 @@ jobs:
           python3 scripts/ansible/test-bootstrap.py
           python3 scripts/ansible/test-rotate-mtls.py
           python3 scripts/backups/test-lynk-db-backup.py
+          python3 scripts/cd/test_image_build_inputs.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-applications.yml --syntax-check
@@ -133,10 +134,29 @@ jobs:
             terraform -chdir="$root" validate
           done
 
+  image-inputs:
+    name: Detect image build inputs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      build_images: ${{ steps.classify.outputs.build_images }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify files changed by this event
+        id: classify
+        env:
+          IMAGE_DIFF_BASE: ${{ github.event.before || github.event.pull_request.base.sha || '' }}
+          IMAGE_DIFF_HEAD: ${{ github.sha }}
+        run: python3 scripts/cd/image_build_inputs.py --base "$IMAGE_DIFF_BASE" --head "$IMAGE_DIFF_HEAD"
+
   build-and-push:
     name: Publish immutable images
-    needs: [lint-and-test, gateway-e2e, automation-checks, gitops-checks, terraform-checks]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs:
+      [lint-and-test, gateway-e2e, automation-checks, gitops-checks, terraform-checks, image-inputs]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.image-inputs.outputs.build_images == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
