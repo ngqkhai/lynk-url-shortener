@@ -1,4 +1,5 @@
-{{- if .Values.global.postSyncSmoke.enabled }}
+{{- $postSyncSmoke := .Values.global.postSyncSmoke | default dict }}
+{{- if $postSyncSmoke.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -31,8 +32,8 @@ spec:
                 'http://redirect-service:3002/health/ready',
                 'http://auth-service:3004/health/ready',
               ];
-              const timeoutMs = {{ .Values.global.postSyncSmoke.timeoutSeconds }} * 1000;
-              const attempts = {{ .Values.global.postSyncSmoke.attempts }};
+              const timeoutMs = {{ $postSyncSmoke.timeoutSeconds | default 3 }} * 1000;
+              const attempts = {{ $postSyncSmoke.attempts | default 12 }};
               const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
               for (const endpoint of endpoints) {
                 let status = 0;
