@@ -5,3 +5,5 @@ output "database_backup_bucket" { value = aws_s3_bucket.database_backups.id }
 output "instance_role_name" { value = aws_iam_role.node.name }
 output "region" { value = "ap-southeast-1" }
 output "ssm_document" { value = aws_ssm_document.deploy.name }
+output "status_role_arn" { value = aws_iam_role.status.arn }
+output "status_ssm_document" { value = aws_ssm_document.argocd_status.name }

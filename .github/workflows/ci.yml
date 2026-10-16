@@ -81,16 +81,20 @@ jobs:
           python3 scripts/ansible/test-rotate-mtls.py
           python3 scripts/backups/test-lynk-db-backup.py
           python3 scripts/cd/test_image_build_inputs.py
+          python3 scripts/cd/test_promote_release.py
+          python3 scripts/cd/test_promotion_guard.py
+          python3 scripts/cd/test_wait_argocd_status.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-applications.yml --syntax-check
+          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-application-sources.yml --syntax-check
           python3 scripts/cd/test-workflow-gates.py
           python3 scripts/secrets/vault-bundle.py check
           python3 scripts/secrets/test-vault-bundle.py
           python3 scripts/secrets/test-mtls-pki.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/rotate-mtls.yml --syntax-check
           cfn-lint infra/aws/stack.yaml infra/aws/automation.yaml
-          bash -n scripts/cd/deploy.sh scripts/bootstrap-aws-platform.sh
+          bash -n scripts/cd/deploy.sh scripts/cd/argocd-status.sh scripts/bootstrap-aws-platform.sh
           curl -fsS https://get.helm.sh/helm-v3.21.2-linux-amd64.tar.gz -o /tmp/helm.tar.gz
           tar -xzf /tmp/helm.tar.gz -C /tmp
           /tmp/linux-amd64/helm lint infra/k8s/helm/lynk-services -f infra/k8s/helm/lynk-services/values-aws.yaml
@@ -246,3 +250,95 @@ jobs:
     with:
       release-sha: ${{ github.sha }}
       upload-artifact: true
+
+  promote-release:
+    name: Promote immutable release to aws-demo GitOps
+    needs: [package-release, deployment-policy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.deployment-policy.outputs.mode == 'argocd'
+    runs-on: ubuntu-latest
+    environment: aws-demo
+    concurrency:
+      group: lynk-argocd-promotion
+      queue: max
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release-artifact
+      - name: Verify release archive and extracted manifest
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          cd release-artifact
+          sha256sum --check release.sha256
+          mkdir extracted
+          tar -xzf release.tar.gz -C extracted
+          python3 - "$SOURCE_SHA" extracted/release.json <<'PYCODE'
+          import json, sys
+          sys.path.insert(0, '../scripts/cd')
+          from promote_release import validate_release
+          validate_release(json.load(open(sys.argv[2])), sys.argv[1])
+          PYCODE
+      - name: Reject stale source, stage one file and push without force
+        id: promotion
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin main
+          MAIN_SHA="$(git rev-parse origin/main)"
+          python3 scripts/cd/promotion_guard.py --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA"
+          git checkout --detach "$SOURCE_SHA"
+          # Apply the verified manifest to the exact source tree after the freshness guard.
+          python3 scripts/cd/promote_release.py --release-json release-artifact/extracted/release.json --values infra/k8s/helm/lynk-services/values-aws-demo.yaml --expected-sha "$SOURCE_SHA"
+          git add -- infra/k8s/helm/lynk-services/values-aws-demo.yaml
+          python3 scripts/cd/promotion_guard.py --source-sha "$SOURCE_SHA" --main-sha "$MAIN_SHA" --check-staged
+          if git diff --cached --quiet; then
+            echo "promotion_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+            echo "Promotion already contains these exact digests."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(gitops): promote aws-demo ${SOURCE_SHA}"
+          PROMOTION_SHA="$(git rev-parse HEAD)"
+          git fetch origin main
+          CURRENT_MAIN="$(git rev-parse origin/main)"
+          python3 scripts/cd/promotion_guard.py --source-sha "$SOURCE_SHA" --main-sha "$CURRENT_MAIN"
+          git push origin HEAD:main
+          echo "promotion_sha=$PROMOTION_SHA" >> "$GITHUB_OUTPUT"
+      - name: Configure least-privilege AWS status role
+        if: steps.promotion.outputs.promotion_sha != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_STATUS_ROLE_ARN }}
+          aws-region: ap-southeast-1
+      - name: Request read-only Argo release status
+        if: steps.promotion.outputs.promotion_sha != ''
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          VALUES_REVISION: ${{ steps.promotion.outputs.promotion_sha }}
+          INSTANCE_ID: ${{ vars.AWS_INSTANCE_ID }}
+          AWS_REGION: ap-southeast-1
+        run: python3 scripts/cd/wait-argocd-status.py
+      - name: Restore desired values if status verification failed (deployment remains failed)
+        if: failure() && steps.promotion.outputs.promotion_sha != '' && steps.promotion.outputs.promotion_sha != github.sha
+        env:
+          PROMOTION_SHA: ${{ steps.promotion.outputs.promotion_sha }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin main
+          CURRENT_MAIN="$(git rev-parse origin/main)"
+          if [ "$CURRENT_MAIN" != "$PROMOTION_SHA" ]; then
+            echo "Cannot safely revert: main advanced to $CURRENT_MAIN; operator reconciliation required." >&2
+            exit 1
+          fi
+          git checkout --detach "$PROMOTION_SHA"
+          git revert --no-edit "$PROMOTION_SHA"
+          git push origin HEAD:main
+          echo "Desired values were reverted; deployment verification remains failed." >&2

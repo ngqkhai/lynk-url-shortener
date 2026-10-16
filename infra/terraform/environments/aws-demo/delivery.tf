@@ -8,3 +8,13 @@ resource "aws_ssm_document" "deploy" {
   region          = "ap-southeast-1"
   tags            = {}
 }
+
+resource "aws_ssm_document" "argocd_status" {
+  content         = file("${path.module}/argocd-status-document.json")
+  document_format = "JSON"
+  document_type   = "Command"
+  name            = "LynkArgoStatus"
+  permissions     = {}
+  region          = "ap-southeast-1"
+  tags            = {}
+}

@@ -83,6 +83,22 @@ class WorkflowGateTests(unittest.TestCase):
             self.assertEqual(workflow['concurrency'],
                              {'group': 'lynk-aws-deployment', 'cancel-in-progress': False})
 
+    def test_argocd_promotion_is_guarded_serialized_and_scoped(self):
+        promotion = CI['jobs']['promote-release']
+        self.assertEqual(promotion['needs'], ['package-release', 'deployment-policy'])
+        self.assertIn("needs.deployment-policy.outputs.mode == 'argocd'", promotion['if'])
+        self.assertEqual(promotion['concurrency'], {
+            'group': 'lynk-argocd-promotion', 'queue': 'max', 'cancel-in-progress': False
+        })
+        self.assertEqual(promotion['permissions'], {'contents': 'write', 'id-token': 'write'})
+        self.assertEqual(promotion['environment'], 'aws-demo')
+        self.assertIn('promotion_guard.py', '\n'.join(step.get('run', '') for step in promotion['steps']))
+        self.assertIn('wait-argocd-status.py', '\n'.join(step.get('run', '') for step in promotion['steps']))
+        rollback = next(step for step in promotion['steps'] if 'Restore desired values' in step.get('name', ''))
+        self.assertIn('git revert --no-edit', rollback['run'])
+        self.assertIn('git push origin HEAD:main', rollback['run'])
+        self.assertNotIn('--force', rollback['run'])
+
 
 if __name__ == '__main__':
     unittest.main()

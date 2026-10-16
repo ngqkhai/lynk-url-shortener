@@ -78,6 +78,43 @@ resource "aws_iam_role_policy" "deploy" {
   role = aws_iam_role.deploy.name
 }
 
+resource "aws_iam_role" "status" {
+  assume_role_policy = jsonencode({
+    Statement = [{
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          "token.actions.githubusercontent.com:sub" = "repo:ngqkhai@92835482/lynk-url-shortener@1365808803:environment:aws-demo"
+        }
+      }
+      Effect = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+    }]
+    Version = "2012-10-17"
+  })
+  max_session_duration = 3600
+  name                 = "lynk-github-argocd-status"
+  path                 = "/"
+}
+
+resource "aws_iam_role_policy" "status" {
+  name = "argocd-release-status-only"
+  role = aws_iam_role.status.name
+  policy = jsonencode({
+    Statement = [{
+      Action   = "ssm:SendCommand"
+      Effect   = "Allow"
+      Resource = ["arn:aws:ec2:ap-southeast-1:231136241975:instance/${aws_instance.node.id}", "arn:aws:ssm:ap-southeast-1:231136241975:document/${aws_ssm_document.argocd_status.name}"]
+    }, {
+      Action   = "ssm:GetCommandInvocation"
+      Effect   = "Allow"
+      Resource = "*"
+    }]
+    Version = "2012-10-17"
+  })
+}
+
 resource "aws_iam_instance_profile" "node" {
   name = "lynk-k3s-dev-InstanceProfile-laelrId0FDdg"
   path = "/"

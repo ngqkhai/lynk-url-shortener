@@ -125,3 +125,11 @@
     src: '{{ source_root }}/scripts/cd/deploy.sh'
     dest: /opt/lynk/bin/deploy.sh
     mode: '0700'
+
+- name: Install root-owned read-only Argo CD status checker
+  ansible.builtin.copy:
+    src: '{{ source_root }}/scripts/cd/argocd-status.sh'
+    dest: /opt/lynk/bin/argocd-status.sh
+    owner: root
+    group: root
+    mode: '0700'

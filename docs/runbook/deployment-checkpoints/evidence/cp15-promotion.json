@@ -1,0 +1,67 @@
+{
+  "checkpoint": "CP15",
+  "branch": "checkpoint/cp15-promotion-async",
+  "based_on_main": "449193151c21a2155eb7668eb80b89722ace1602",
+  "preflight": {
+    "deployment_mode": "paused",
+    "environment_reviewer": "ngqkhai",
+    "cp14_main_run": {
+      "id": "38937815997",
+      "conclusion": "success",
+      "image_inputs": false,
+      "publisher": "skipped",
+      "package_release": "skipped",
+      "deploy": "skipped"
+    },
+    "latest_live_aws_state": {
+      "status": "not refreshed in CP15",
+      "last_observation_checkpoint": "CP13",
+      "app_sync": "OutOfSync",
+      "app_health": "Progressing",
+      "helm_release_revision": 6,
+      "workload_changes_in_cp15": false
+    },
+    "aws_sso": {
+      "profile": "ngqkhai-dev",
+      "operator_reported_reauthenticated": true,
+      "status": "blocked by endpoint connectivity",
+      "error": "Could not connect to https://oidc.ap-southeast-1.amazonaws.com/token",
+      "successful_aws_api_calls": 0
+    }
+  },
+  "planned_scope": {
+    "multi_source_application": true,
+    "chart_revision_remains_pinned": "87eb22600c545ac6952d472739b0091f5bd84281",
+    "environment_values_source": "main",
+    "promotion_file_allowlist": ["infra/k8s/helm/lynk-services/values-aws-demo.yaml"],
+    "promotion_token": "GITHUB_TOKEN with contents:write scoped to the promotion job",
+    "deployment_mode_must_remain_paused": true,
+    "workload_sync_requested": false
+  },
+  "verification": {
+    "plan_written_before_implementation": true,
+    "local_implementation": "prepared; AWS live work remains blocked",
+    "python_tests": {
+      "promote_release": "passed (3)",
+      "promotion_guard": "passed (4, including non-fast-forward race in temporary Git remote)",
+      "ssm_status_waiter": "passed (4)",
+      "workflow_gates": "passed (6)",
+      "gitops_contract": "passed"
+    },
+    "bash_syntax_and_python_compile": "passed",
+    "git_diff_check": "passed",
+    "terraform_cli": "unavailable in local execution environment",
+    "terraform_plan": "blocked: AWS OIDC endpoint unreachable; live state was not read",
+    "ansible_syntax": "not run: ansible-playbook unavailable in local execution environment",
+    "aws_preflight_error": "Could not connect to oidc.ap-southeast-1.amazonaws.com/token",
+    "ssm_status_document_applied": false,
+    "application_spec_updated_live": false,
+    "promotion_invoked": false,
+    "deployment_invoked": false
+  },
+  "risks_and_gates": [
+    "Do not apply Terraform or update the live Application until AWS SSO is refreshed and the exact plan/live state is reviewed.",
+    "Do not enable LYNK_DEPLOY_MODE=argocd in CP15.",
+    "Do not run a production promotion or Argo sync; CP17 is the real release checkpoint."
+  ]
+}

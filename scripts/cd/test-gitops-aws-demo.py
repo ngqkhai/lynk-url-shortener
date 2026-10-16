@@ -17,7 +17,18 @@ def main():
     assert "automated" not in policy
     assert not policy.get("prune", False)
     assert not policy.get("selfHeal", False)
-    assert app["spec"]["source"]["targetRevision"] == "87eb22600c545ac6952d472739b0091f5bd84281"
+    sources = app["spec"]["sources"]
+    assert len(sources) == 2
+    chart, values = sources
+    repo = "https://github.com/ngqkhai/lynk-url-shortener.git"
+    assert chart["repoURL"] == repo
+    assert chart["targetRevision"] == "87eb22600c545ac6952d472739b0091f5bd84281"
+    assert chart["path"] == "infra/k8s/helm/lynk-services"
+    assert chart["helm"]["valueFiles"] == [
+        "values-aws.yaml",
+        "$values/infra/k8s/helm/lynk-services/values-aws-demo.yaml",
+    ]
+    assert values == {"repoURL": repo, "targetRevision": "main", "ref": "values"}
     assert project["spec"]["clusterResourceWhitelist"] == []
     print("PASS: aws-demo adoption remains manual, non-pruning and pinned to the chart/hook source commit")
 

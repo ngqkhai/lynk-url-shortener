@@ -12,7 +12,7 @@ After [CP06 import](deployment-checkpoints/cp06-import-retain.md) and [CP07 rele
 
 GitHub environments restrict deployment to `main`:
 
-- `aws-demo`: `AWS_DEPLOY_ROLE_ARN`, `AWS_ARTIFACT_BUCKET`, `AWS_INSTANCE_ID` variables; no AWS access keys.
+- `aws-demo`: legacy `AWS_DEPLOY_ROLE_ARN`, `AWS_ARTIFACT_BUCKET`, `AWS_INSTANCE_ID` variables; no AWS access keys. CP15 adds `AWS_STATUS_ROLE_ARN` from Terraform output `status_role_arn`; it is a distinct OIDC role limited to the fixed read-only SSM status document and the target instance. Do not point it at the legacy deploy role.
 - `aws-bootstrap`: `AWS_BOOTSTRAP_ROLE_ARN`, manual reviewer `ngqkhai`; SSM session access permits root configuration and must remain separate from ordinary CD.
 
 The pre-deploy CI gate explicitly checks anonymous image access. On initial inspection, URL latest returned 200; redirect/auth anonymous access returned 403 (private or not yet published).
