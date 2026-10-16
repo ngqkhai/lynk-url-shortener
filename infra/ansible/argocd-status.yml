@@ -2,7 +2,7 @@
   hosts: lynk
   gather_facts: false
   vars:
-    status_script: '{{ playbook_dir }}/../scripts/cd/argocd-status.sh'
+    status_script: '{{ playbook_dir }}/../../scripts/cd/argocd-status.sh'
     installed_script: /opt/lynk/bin/argocd-status.sh
   tasks:
     - name: Install the status checker with root-only execution rights

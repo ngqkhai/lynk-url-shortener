@@ -84,6 +84,7 @@ jobs:
           python3 scripts/cd/test_promote_release.py
           python3 scripts/cd/test_promotion_guard.py
           python3 scripts/cd/test_wait_argocd_status.py
+          python3 scripts/cd/test_argocd_status_automation.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd.yml --syntax-check
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/argocd-applications.yml --syntax-check
