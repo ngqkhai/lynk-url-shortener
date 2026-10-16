@@ -77,6 +77,7 @@ jobs:
         run: |
           pip install -r infra/ansible/requirements.txt cfn-lint==1.57.2
           ansible-galaxy collection install -r infra/ansible/requirements.yml
+          python3 scripts/ansible/test-bootstrap.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           python3 scripts/cd/test-workflow-gates.py
           python3 scripts/secrets/vault-bundle.py check

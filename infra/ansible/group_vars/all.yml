@@ -1,0 +1,16 @@
+k3s_version: v1.37.1+k3s1
+helm_version: v3.21.2
+aws_cli_version: 2.31.18
+source_root: '{{ playbook_dir }}/../..'
+runtime_secret_names:
+  - auth.env
+  - url.env
+  - redirect.env
+  - redis-password
+  - jwt-private.pem
+  - jwt-public.pem
+  - ca.crt
+  - server.crt
+  - server.key
+  - client.crt
+  - client.key

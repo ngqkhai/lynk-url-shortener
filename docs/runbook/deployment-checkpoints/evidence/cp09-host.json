@@ -1,0 +1,67 @@
+{
+  "checkpoint": "CP09",
+  "terraform": {
+    "version": "1.16.6",
+    "aws_provider": "6.69.1",
+    "backend_initialized_readonly": true,
+    "inventory_policy_plan": "1 add, 0 change, 0 destroy",
+    "policy_applied": true
+  },
+  "inventory": {
+    "host_count": 1,
+    "instance_id": "i-03bb7dcb94ec8bd21",
+    "transport": "SSM",
+    "region": "ap-southeast-1",
+    "exports_only_allowlisted_metadata": true
+  },
+  "ansible": {
+    "version": "2.19.3",
+    "collection": "amazon.aws 10.1.2",
+    "check_mode": {
+      "ok": 15,
+      "changed": 0,
+      "unreachable": 0,
+      "failed": 0,
+      "skipped": 13
+    },
+    "first_apply": {
+      "ok": 18,
+      "changed": 0,
+      "unreachable": 0,
+      "failed": 0,
+      "skipped": 10
+    },
+    "second_apply": {
+      "ok": 18,
+      "changed": 0,
+      "unreachable": 0,
+      "failed": 0,
+      "skipped": 10
+    },
+    "failure_injection": false
+  },
+  "runtime": {
+    "k3s": "k3s version v1.37.1+k3s1 (356c0254)",
+    "helm": "v3.21.2+g1259634",
+    "aws_cli": "aws-cli/2.31.18 Python/3.13.7 Linux/7.0.0-1014-aws exe/x86_64.ubuntu.24",
+    "secret_directory_root_0700": true,
+    "regular_secret_files_0600": 11,
+    "ca_signing_key_on_host": false
+  },
+  "public_smoke": {
+    "status": "Success",
+    "response_code": 0,
+    "failure_injection": false,
+    "source_sha256": "ab3082c925064cc891ccd351259bb8b4b117d8d075eb1b0392b82db8bb9f0a6f"
+  },
+  "controller": {
+    "vault_plaintext_cleanup_tested": true,
+    "inventory_missing_host_fails_before_decrypt": true,
+    "interrupted_run_temp_removed_manually": true
+  },
+  "limitations": [
+    "GitHub OIDC bootstrap role effective session not exercised; aws-bootstrap environment reviewer gate remains in force.",
+    "IAM simulator organization result is not treated as effective-permission evidence for the Organizations management account.",
+    "SSM and public smoke did not validate a new-host bootstrap or disaster recovery."
+  ]
+}

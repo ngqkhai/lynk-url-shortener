@@ -14,14 +14,14 @@ This document includes historical execution snapshots. [CP01](deployment-checkpo
 ## Automation ownership
 
 - Terraform: VPC/subnet/Internet Gateway/routes, Security Group, instance/IAM role, EBS, Elastic IP. Record resource IDs for import; never commit state or credentials.
-- Ansible: OS packages/sysctl, version-pinned K3s/Helm, node configuration, secret provisioning and Helm bootstrap.
+- Ansible: OS packages, version-pinned K3s/Helm/AWS CLI, node configuration, Vault-backed runtime secret verification and provisioning. Since CP09 it does not reconcile application/platform workloads.
 - Helm: deployments, probes, migration Jobs, Middleware/Ingress and Kafka/Redis.
 
 ## Execution checkpoints
 
 1. AWS SSO identity check succeeded. Existing `default` profile must not be used; explicitly select `ngqkhai-dev`.
 2. Neon CLI authentication/setup in progress. Never print connection strings/passwords/API tokens in logs.
-3. Infrastructure and deployment resources will be appended with commands, verification, costs and rollback as each step completes.
+3. [CP04–CP08](deployment-checkpoints/cp08-capacity-resize.md) established the private versioned Terraform backend, imported ownership, released CloudFormation, and resized the existing host within the t3.medium limit. [CP09](deployment-checkpoints/cp09-ansible-host.md) added dynamic inventory and Vault-backed host convergence; two applies were idempotent and public smoke passed. Per-checkpoint evidence lives alongside the lessons.
 
 ## Cost guardrails
 

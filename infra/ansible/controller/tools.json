@@ -1,0 +1,9 @@
+{
+  "session_manager_plugin": {
+    "version": "1.2.896.0",
+    "package_version": "1.2.896.0-1",
+    "url": "https://s3.amazonaws.com/session-manager-downloads/plugin/1.2.896.0/ubuntu_64bit/session-manager-plugin.deb",
+    "sha256": "53f51fcc67314a4bf85888a38a3967cd41f8d0f28a60a9469a63acf935ba713e",
+    "signer_fingerprint": "7959637124CE093AD501D47A2C4D4AFF6F6757EE"
+  }
+}

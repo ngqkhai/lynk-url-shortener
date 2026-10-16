@@ -1,0 +1,127 @@
+- name: Install operating system dependencies
+  ansible.builtin.apt:
+    name: [curl, ca-certificates, jq, unzip, python3, python3-venv, util-linux]
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+
+- name: Create protected host directories
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop: [/opt/lynk, /opt/lynk/bin, /opt/lynk/releases, /etc/rancher/k3s]
+
+- name: Configure K3s
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0600'
+    backup: true
+    content: |
+      write-kubeconfig-mode: "0600"
+      disable:
+        - traefik
+        - servicelb
+      secrets-encryption: true
+      node-label:
+        - ingress-ready=true
+  notify: Restart K3s
+
+- name: Inspect installed K3s
+  ansible.builtin.command: /usr/local/bin/k3s --version
+  register: k3s_installed
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Refuse implicit K3s version changes
+  ansible.builtin.assert:
+    that: k3s_installed.rc != 0 or k3s_version in k3s_installed.stdout
+
+- name: Download K3s installer for fresh hosts
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /opt/lynk/install-k3s.sh
+    mode: '0700'
+  when: k3s_installed.rc != 0
+
+- name: Install pinned K3s on fresh hosts
+  ansible.builtin.command: /opt/lynk/install-k3s.sh
+  environment:
+    INSTALL_K3S_VERSION: '{{ k3s_version }}'
+  when: k3s_installed.rc != 0
+
+- name: Inspect installed Helm
+  ansible.builtin.command: /usr/local/bin/helm version --short
+  register: helm_installed
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Refuse implicit Helm version changes
+  ansible.builtin.assert:
+    that: helm_installed.rc != 0 or helm_version in helm_installed.stdout
+
+- name: Supply pinned Helm only when absent
+  when: helm_installed.rc != 0 and not ansible_check_mode
+  block:
+    - name: Create version-specific Helm directory
+      ansible.builtin.file:
+        path: '/opt/lynk/helm-{{ helm_version }}'
+        state: directory
+        mode: '0700'
+    - name: Download pinned Helm archive
+      ansible.builtin.get_url:
+        url: 'https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz'
+        dest: '/opt/lynk/helm-{{ helm_version }}.tar.gz'
+        mode: '0600'
+    - name: Extract pinned Helm archive
+      ansible.builtin.unarchive:
+        src: '/opt/lynk/helm-{{ helm_version }}.tar.gz'
+        dest: '/opt/lynk/helm-{{ helm_version }}'
+        remote_src: true
+        creates: '/opt/lynk/helm-{{ helm_version }}/linux-amd64/helm'
+    - name: Install Helm executable
+      ansible.builtin.copy:
+        src: '/opt/lynk/helm-{{ helm_version }}/linux-amd64/helm'
+        dest: /usr/local/bin/helm
+        remote_src: true
+        mode: '0755'
+
+- name: Inspect installed host AWS CLI
+  ansible.builtin.command: /usr/local/bin/aws --version
+  register: aws_cli_installed
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Refuse implicit host AWS CLI version changes
+  ansible.builtin.assert:
+    that: aws_cli_installed.rc != 0 or ('aws-cli/' + aws_cli_version) in aws_cli_installed.stdout
+
+- name: Supply pinned host AWS CLI only when absent
+  when: aws_cli_installed.rc != 0 and not ansible_check_mode
+  block:
+    - name: Download pinned AWS CLI archive
+      ansible.builtin.get_url:
+        url: 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64-{{ aws_cli_version }}.zip'
+        dest: /opt/lynk/awscli.zip
+        mode: '0600'
+    - name: Extract pinned AWS CLI archive
+      ansible.builtin.unarchive:
+        src: /opt/lynk/awscli.zip
+        dest: /opt/lynk
+        remote_src: true
+        creates: /opt/lynk/aws/install
+    - name: Install AWS CLI executable
+      ansible.builtin.command: /opt/lynk/aws/install
+      args:
+        creates: /usr/local/bin/aws
+
+- name: Install root-owned legacy CD entrypoint without executing it
+  ansible.builtin.copy:
+    src: '{{ source_root }}/scripts/cd/deploy.sh'
+    dest: /opt/lynk/bin/deploy.sh
+    mode: '0700'
