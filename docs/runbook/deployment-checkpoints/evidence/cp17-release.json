@@ -1,46 +1,45 @@
 {
   "checkpoint": "CP17",
-  "observed_at_utc": "2026-10-16T19:23:19Z",
-  "source_sha": "5615b583d72f95dcccf04ff05709c48cc11eab3b",
+  "observed_at_utc": "2026-10-16T23:39:55.027256+00:00",
+  "source_sha": "9673a0e9d66a7d1336913953126a306037e4089f",
   "workflow": {
-    "run_id": 38954573353,
-    "branch_ci_run_id": 38954155656,
-    "branch_ci_conclusion": "success",
+    "run_id": 38981715213,
+    "branch_ci_run_id": 38981317341,
+    "conclusion": "success",
     "quality_jobs_conclusion": "success",
-    "image_build_inputs": [
-      "services/auth-service/Dockerfile",
-      "services/auth-service/src/config/env.ts",
-      "services/auth-service/src/server.ts",
-      "services/redirect-service/Dockerfile",
-      "services/redirect-service/src/config/env.ts",
-      "services/redirect-service/src/server.ts",
-      "services/url-service/Dockerfile",
-      "services/url-service/src/config/env.ts",
-      "services/url-service/src/server.ts"
-    ],
     "image_builds": "success",
     "anonymous_pull_verification": "success",
-    "release_artifact_sha256": "5819f07c3389517bf6f455ff7c5782f07b66f0d3fe367d2ec713ca5bdb28215e",
-    "release_manifest_source_sha": "5615b583d72f95dcccf04ff05709c48cc11eab3b",
+    "release_artifact_sha256": "bc160d6f6297caaa10827b309771468c9d5e4a7e44e6252637c774bd9f29ecd3",
+    "release_manifest_source_sha": "9673a0e9d66a7d1336913953126a306037e4089f",
     "images": {
-      "url": "ghcr.io/ngqkhai/lynk-url-service@sha256:432a8494036a1727505153754d3f63ce082c30c527e9f4d873b14ccba400f159",
-      "redirect": "ghcr.io/ngqkhai/lynk-redirect-service@sha256:07932cff5538a5ff41e3f8ad2a4e72eae40ae606c9e199f707bd185a4de3570c",
-      "auth": "ghcr.io/ngqkhai/lynk-auth-service@sha256:488580b8e2200bb417c73068288b4560600e2301d2899872767610882c9c6abd"
+      "urlService": "ghcr.io/ngqkhai/lynk-url-service@sha256:d75616bcc83519cf54d317ff2a4015d71c31ce3430a35ffbc475b562e78fdc71",
+      "redirectService": "ghcr.io/ngqkhai/lynk-redirect-service@sha256:295990b789a6799b4b7e7d105c309d98ddfd0e76f5a24bee2ee3f4ba2d9196f2",
+      "authService": "ghcr.io/ngqkhai/lynk-auth-service@sha256:97330ac696e7fb58a86ec3a0d5306f8fa618812b67b25169de101e9e80cf62f0"
     }
   },
   "delivery": {
     "mode": "argocd",
-    "legacy_ssm_writer": "disabled",
+    "legacy_ssm_writer": "disabled by workflow mode and retired legacy role deny-all inline policy",
     "aws_demo_branch_before_promotion": "87eb22600c545ac6952d472739b0091f5bd84281",
-    "promotion_job_status": "failed_before_write",
-    "promotion_failure": {
-      "category": "wrong_repository_root_for_allowlisted_path",
-      "cause": "promotion script compared detached worktree path against the main checkout root",
-      "guard_result": "fresh_source_and_allowlisted_changes_passed",
-      "aws_demo_advanced": false,
-      "fixed_by": "explicit repository-root argument and detached-worktree regression test"
+    "promotion_revision": "032e64a28dcb84d8049d7297e070cc10b0319c33",
+    "promotion_job_status": "success",
+    "deployment_verified": true,
+    "ssm_command_id": "60af301a-184e-45b5-b5cf-0d15000ede2b",
+    "ssm_status": "Success",
+    "ssm_elapsed": "PT1M54.906S",
+    "ssm_summary": {
+      "release_sha": "9673a0e9d66a7d1336913953126a306037e4089f",
+      "smoke": "Succeeded",
+      "status": "Healthy",
+      "values_revision": "032e64a28dcb84d8049d7297e070cc10b0319c33"
     },
-    "deployment_verified": false
+    "convergence_messages": [
+      "Waiting: Argo has not observed the requested revision",
+      "Waiting: Argo is not Synced",
+      "Waiting: Argo is not Healthy",
+      "Waiting: Argo has not completed the requested operation"
+    ],
+    "legacy_iam_evidence": "cp17-iam-retirement.json"
   },
   "pre_release_observations": {
     "argo_revision": "87eb22600c545ac6952d472739b0091f5bd84281",
@@ -81,20 +80,70 @@
     "promotion_guard_tests": "success",
     "chart_and_gitops_checks": "success",
     "preflight_playbook_syntax": "success",
-    "deployment_outcome": "awaiting repaired branch CI and new main release",
-    "latest_branch_ci_run": 38978920903,
-    "fresh_readonly_preflight": "success; 12 tasks passed, 0 changed",
-    "public_readiness": "HTTP 200"
+    "deployment_outcome": "verified",
+    "latest_branch_ci_run": 38981317341,
+    "fresh_readonly_preflight": "success; 12 tasks passed, 0 remote changes",
+    "public_readiness": "HTTP 200",
+    "public_functional_smoke": "success",
+    "legacy_iam_retirement": "one inline policy updated; live readback and custom-policy simulations passed; principal simulator discrepancy recorded"
   },
-  "branch_source_sha": "1ae186cb309a97d5ddf4046358608e1a511672db",
+  "branch_source_sha": "9673a0e9d66a7d1336913953126a306037e4089f",
   "latest_branch_ci_run": {
-    "run_id": 38978920903,
+    "run_id": 38981317341,
     "conclusion": "success",
     "e2e_gateway_kafka": "success",
     "lint_format_build_tests": "success",
     "terraform_helm_gitops": "success"
   },
-  "additional_attempts": [
+  "repair_local_verification": {
+    "workflow_fixtures": "8 passed; actual YAML steps, local bare remotes, no production injection",
+    "status_fixtures": "11 passed; convergence, strict deadline, identities, hook history, large payload",
+    "live_release": "verified through successful workflow, exact runtime digests/SHA, hooks and public functional smoke"
+  },
+  "attempt_history": [
+    {
+      "source_sha": "5615b583d72f95dcccf04ff05709c48cc11eab3b",
+      "workflow": {
+        "run_id": 38954573353,
+        "branch_ci_run_id": 38954155656,
+        "branch_ci_conclusion": "success",
+        "quality_jobs_conclusion": "success",
+        "image_build_inputs": [
+          "services/auth-service/Dockerfile",
+          "services/auth-service/src/config/env.ts",
+          "services/auth-service/src/server.ts",
+          "services/redirect-service/Dockerfile",
+          "services/redirect-service/src/config/env.ts",
+          "services/redirect-service/src/server.ts",
+          "services/url-service/Dockerfile",
+          "services/url-service/src/config/env.ts",
+          "services/url-service/src/server.ts"
+        ],
+        "image_builds": "success",
+        "anonymous_pull_verification": "success",
+        "release_artifact_sha256": "5819f07c3389517bf6f455ff7c5782f07b66f0d3fe367d2ec713ca5bdb28215e",
+        "release_manifest_source_sha": "5615b583d72f95dcccf04ff05709c48cc11eab3b",
+        "images": {
+          "url": "ghcr.io/ngqkhai/lynk-url-service@sha256:432a8494036a1727505153754d3f63ce082c30c527e9f4d873b14ccba400f159",
+          "redirect": "ghcr.io/ngqkhai/lynk-redirect-service@sha256:07932cff5538a5ff41e3f8ad2a4e72eae40ae606c9e199f707bd185a4de3570c",
+          "auth": "ghcr.io/ngqkhai/lynk-auth-service@sha256:488580b8e2200bb417c73068288b4560600e2301d2899872767610882c9c6abd"
+        }
+      },
+      "delivery": {
+        "mode": "argocd",
+        "legacy_ssm_writer": "disabled",
+        "aws_demo_branch_before_promotion": "87eb22600c545ac6952d472739b0091f5bd84281",
+        "promotion_job_status": "failed_before_write",
+        "promotion_failure": {
+          "category": "wrong_repository_root_for_allowlisted_path",
+          "cause": "promotion script compared detached worktree path against the main checkout root",
+          "guard_result": "fresh_source_and_allowlisted_changes_passed",
+          "aws_demo_advanced": false,
+          "fixed_by": "explicit repository-root argument and detached-worktree regression test"
+        },
+        "deployment_verified": false
+      }
+    },
     {
       "run_id": 38979795793,
       "source_sha": "eb959a86260bcfde2e1d011174563bd56b223854",
@@ -105,9 +154,36 @@
       "aws_demo_advanced": false
     }
   ],
-  "repair_local_verification": {
-    "workflow_fixtures": "8 passed; actual YAML steps, local bare remotes, no production injection",
-    "status_fixtures": "11 passed; convergence, strict deadline, identities, hook history, large payload",
-    "live_release": "not yet verified"
+  "post_release_verification": {
+    "public_functional_smoke": {
+      "rc": 0,
+      "stdout": "PASS: opaque gateway, owner isolation, refresh reuse, logout, public redirect, replication before first click"
+    },
+    "public_readiness_http_status": 200,
+    "runtime_evidence": "cp17-runtime.json",
+    "protected_identity_evidence": "cp17-protected-identities.json",
+    "protected_resource_count": 20,
+    "protected_identities_equal": true,
+    "eip_dns_preserved": true,
+    "capacity_observed_at_utc": "2026-10-16T23:35:34.581818+00:00",
+    "node_usage": "NAME             CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   \nip-10-70-1-221   738m         36%      2429Mi          63%         \n",
+    "root_disk_free_Ki": 20885932,
+    "production_fault_injection": false,
+    "production_rollback_tested": false,
+    "local_rollback_fixture": "passed with clean Git configuration; refuses changed remote heads"
+  },
+  "repair_pre_release_observations": {
+    "observed_at_utc": "2026-10-16T23:25:17Z",
+    "node_cpu_usage": "425m",
+    "node_cpu_usage_percent": 21,
+    "node_memory_usage": "2315Mi",
+    "node_memory_usage_percent": 60,
+    "root_disk_free_Ki": 21326892,
+    "instance_type": "t3.medium",
+    "credit_mode": "standard",
+    "cpu_credit_balance": 575.9867669166666,
+    "cpu_credit_observed_at_utc": "2026-10-16T23:22:00Z",
+    "live_status_document_matches_repository": true,
+    "installed_shell_and_python": "root:root mode 0700; syntax and invalid argument behavior verified"
   }
 }

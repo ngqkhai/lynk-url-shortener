@@ -1,0 +1,297 @@
+{
+  "apply": {
+    "added": 0,
+    "changed": 1,
+    "destroyed": 0
+  },
+  "scope": "aws_iam_role_policy.deploy",
+  "live_policies": {
+    "lynk-github-deploy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": "*",
+          "Effect": "Deny",
+          "Resource": "*",
+          "Sid": "RetiredAfterArgoAcceptance"
+        }
+      ]
+    },
+    "lynk-github-argocd-status": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": "ssm:SendCommand",
+          "Effect": "Allow",
+          "Resource": [
+            "arn:aws:ec2:ap-southeast-1:231136241975:instance/i-03bb7dcb94ec8bd21",
+            "arn:aws:ssm:ap-southeast-1:231136241975:document/LynkArgoStatus"
+          ]
+        },
+        {
+          "Action": "ssm:GetCommandInvocation",
+          "Effect": "Allow",
+          "Resource": "*"
+        }
+      ]
+    },
+    "lynk-github-bootstrap": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": "ssm:StartSession",
+          "Resource": [
+            "arn:aws:ec2:ap-southeast-1:231136241975:instance/i-03bb7dcb94ec8bd21",
+            "arn:aws:ssm:ap-southeast-1::document/SSM-SessionManagerRunShell",
+            "arn:aws:ssm:ap-southeast-1:231136241975:document/SSM-SessionManagerRunShell"
+          ],
+          "Effect": "Allow"
+        },
+        {
+          "Action": ["ssm:TerminateSession", "ssm:ResumeSession"],
+          "Resource": "arn:aws:ssm:ap-southeast-1:231136241975:session/*",
+          "Effect": "Allow"
+        },
+        {
+          "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+          "Resource": "arn:aws:s3:::lynk-k3s-dev-artifactbucket-acumvnfx55sd/i-03bb7dcb94ec8bd21/*",
+          "Effect": "Allow"
+        },
+        {
+          "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+          "Resource": "arn:aws:s3:::lynk-k3s-dev-artifactbucket-acumvnfx55sd",
+          "Effect": "Allow"
+        }
+      ]
+    }
+  },
+  "identity_policy_simulation": [
+    {
+      "case": "legacy_deploy",
+      "role": "lynk-github-deploy",
+      "results": [
+        {
+          "EvalActionName": "ssm:SendCommand",
+          "EvalResourceName": "arn:aws:ssm:${Region}:${Account}:${RelativeId}",
+          "EvalDecision": "explicitDeny",
+          "MissingContextValues": [],
+          "ResourceSpecificResults": [
+            {
+              "EvalResourceName": "arn:aws:ec2:ap-southeast-1:231136241975:instance/i-03bb7dcb94ec8bd21",
+              "EvalResourceDecision": "explicitDeny",
+              "MatchedStatements": [
+                {
+                  "SourcePolicyId": "PolicyInputList.1",
+                  "SourcePolicyType": "IAM Policy",
+                  "StartPosition": {
+                    "Line": 1,
+                    "Column": 41
+                  },
+                  "EndPosition": {
+                    "Line": 1,
+                    "Column": 128
+                  }
+                }
+              ]
+            },
+            {
+              "EvalResourceName": "arn:aws:ssm:ap-southeast-1:231136241975:document/LynkDeploy",
+              "EvalResourceDecision": "explicitDeny",
+              "MatchedStatements": [
+                {
+                  "SourcePolicyId": "PolicyInputList.1",
+                  "SourcePolicyType": "IAM Policy",
+                  "StartPosition": {
+                    "Line": 1,
+                    "Column": 41
+                  },
+                  "EndPosition": {
+                    "Line": 1,
+                    "Column": 128
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case": "legacy_artifacts",
+      "role": "lynk-github-deploy",
+      "results": [
+        {
+          "EvalActionName": "s3:PutObject",
+          "EvalResourceName": "arn:aws:s3:::lynk-k3s-dev-artifactbucket-acumvnfx55sd/releases/cp17-check.tar.gz",
+          "EvalDecision": "explicitDeny",
+          "MissingContextValues": [],
+          "ResourceSpecificResults": [
+            {
+              "EvalResourceName": "arn:aws:s3:::lynk-k3s-dev-artifactbucket-acumvnfx55sd/releases/cp17-check.tar.gz",
+              "EvalResourceDecision": "explicitDeny",
+              "MatchedStatements": [
+                {
+                  "SourcePolicyId": "PolicyInputList.1",
+                  "SourcePolicyType": "IAM Policy",
+                  "StartPosition": {
+                    "Line": 1,
+                    "Column": 41
+                  },
+                  "EndPosition": {
+                    "Line": 1,
+                    "Column": 128
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case": "status_allowed",
+      "role": "lynk-github-argocd-status",
+      "results": [
+        {
+          "EvalActionName": "ssm:SendCommand",
+          "EvalResourceName": "arn:aws:ssm:${Region}:${Account}:${RelativeId}",
+          "EvalDecision": "allowed",
+          "MissingContextValues": [],
+          "ResourceSpecificResults": [
+            {
+              "EvalResourceName": "arn:aws:ec2:ap-southeast-1:231136241975:instance/i-03bb7dcb94ec8bd21",
+              "EvalResourceDecision": "allowed",
+              "MatchedStatements": [
+                {
+                  "SourcePolicyId": "PolicyInputList.1",
+                  "SourcePolicyType": "IAM Policy",
+                  "StartPosition": {
+                    "Line": 1,
+                    "Column": 41
+                  },
+                  "EndPosition": {
+                    "Line": 1,
+                    "Column": 242
+                  }
+                }
+              ]
+            },
+            {
+              "EvalResourceName": "arn:aws:ssm:ap-southeast-1:231136241975:document/LynkArgoStatus",
+              "EvalResourceDecision": "allowed",
+              "MatchedStatements": [
+                {
+                  "SourcePolicyId": "PolicyInputList.1",
+                  "SourcePolicyType": "IAM Policy",
+                  "StartPosition": {
+                    "Line": 1,
+                    "Column": 41
+                  },
+                  "EndPosition": {
+                    "Line": 1,
+                    "Column": 242
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case": "status_cannot_deploy",
+      "role": "lynk-github-argocd-status",
+      "results": [
+        {
+          "EvalActionName": "ssm:SendCommand",
+          "EvalResourceName": "arn:aws:ssm:ap-southeast-1:231136241975:document/LynkDeploy",
+          "EvalDecision": "implicitDeny",
+          "MissingContextValues": [],
+          "ResourceSpecificResults": [
+            {
+              "EvalResourceName": "arn:aws:ssm:ap-southeast-1:231136241975:document/LynkDeploy",
+              "EvalResourceDecision": "implicitDeny"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case": "bootstrap_preserved",
+      "role": "lynk-github-bootstrap",
+      "results": [
+        {
+          "EvalActionName": "ssm:StartSession",
+          "EvalResourceName": "arn:aws:ssm:${Region}:${Account}:${RelativeId}",
+          "EvalDecision": "allowed",
+          "MissingContextValues": [],
+          "ResourceSpecificResults": [
+            {
+              "EvalResourceName": "arn:aws:ec2:ap-southeast-1:231136241975:instance/i-03bb7dcb94ec8bd21",
+              "EvalResourceDecision": "allowed",
+              "MatchedStatements": [
+                {
+                  "SourcePolicyId": "PolicyInputList.1",
+                  "SourcePolicyType": "IAM Policy",
+                  "StartPosition": {
+                    "Line": 1,
+                    "Column": 41
+                  },
+                  "EndPosition": {
+                    "Line": 1,
+                    "Column": 322
+                  }
+                }
+              ]
+            },
+            {
+              "EvalResourceName": "arn:aws:ssm:ap-southeast-1::document/SSM-SessionManagerRunShell",
+              "EvalResourceDecision": "allowed",
+              "MatchedStatements": [
+                {
+                  "SourcePolicyId": "PolicyInputList.1",
+                  "SourcePolicyType": "IAM Policy",
+                  "StartPosition": {
+                    "Line": 1,
+                    "Column": 41
+                  },
+                  "EndPosition": {
+                    "Line": 1,
+                    "Column": 322
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "principal_simulator_discrepancy": {
+    "status_role_result": {
+      "EvaluationResults": [
+        {
+          "EvalActionName": "ssm:SendCommand",
+          "EvalResourceName": "arn:aws:ssm:ap-southeast-1:231136241975:document/LynkArgoStatus",
+          "EvalDecision": "explicitDeny",
+          "MatchedStatements": [],
+          "MissingContextValues": [],
+          "OrganizationsDecisionDetail": {
+            "AllowedByOrganizations": false
+          },
+          "EvalDecisionDetails": {},
+          "ResourceSpecificResults": [
+            {
+              "EvalResourceName": "arn:aws:ssm:ap-southeast-1:231136241975:document/LynkArgoStatus",
+              "EvalResourceDecision": "explicitDeny"
+            }
+          ]
+        }
+      ]
+    },
+    "account_is_organization_management": true,
+    "interpretation": "Principal simulator reports an Organizations denial inconsistent with management-account SCP exemption and prior successful live OIDC/SSM. Do not treat as an inline-policy failure; root cause of simulator discrepancy is unverified.",
+    "limitations": "Custom simulation isolates live inline identity policies, not SCP/trust/resource-policy evaluation. No status/bootstrap policy changed."
+  },
+  "terraform_post_apply_plan": "no changes"
+}

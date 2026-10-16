@@ -1,0 +1,283 @@
+{
+  "argo": {
+    "health": {
+      "lastTransitionTime": "2026-10-16T23:35:20Z",
+      "status": "Healthy"
+    },
+    "hooks": [
+      {
+        "group": "batch",
+        "hookPhase": "Succeeded",
+        "hookType": "PreSync",
+        "images": [
+          "ghcr.io/ngqkhai/lynk-auth-service@sha256:97330ac696e7fb58a86ec3a0d5306f8fa618812b67b25169de101e9e80cf62f0"
+        ],
+        "kind": "Job",
+        "message": "Reached expected number of succeeded pods",
+        "name": "auth-service-migrate",
+        "namespace": "lynk-aws",
+        "status": "Synced",
+        "syncPhase": "PreSync",
+        "version": "v1"
+      },
+      {
+        "group": "batch",
+        "hookPhase": "Succeeded",
+        "hookType": "PreSync",
+        "images": [
+          "ghcr.io/ngqkhai/lynk-url-service@sha256:d75616bcc83519cf54d317ff2a4015d71c31ce3430a35ffbc475b562e78fdc71"
+        ],
+        "kind": "Job",
+        "message": "Reached expected number of succeeded pods",
+        "name": "url-service-migrate",
+        "namespace": "lynk-aws",
+        "status": "Synced",
+        "syncPhase": "PreSync",
+        "version": "v1"
+      },
+      {
+        "group": "batch",
+        "hookPhase": "Succeeded",
+        "hookType": "PreSync",
+        "images": [
+          "ghcr.io/ngqkhai/lynk-redirect-service@sha256:295990b789a6799b4b7e7d105c309d98ddfd0e76f5a24bee2ee3f4ba2d9196f2"
+        ],
+        "kind": "Job",
+        "message": "Reached expected number of succeeded pods",
+        "name": "redirect-service-migrate",
+        "namespace": "lynk-aws",
+        "status": "Synced",
+        "syncPhase": "PreSync",
+        "version": "v1"
+      },
+      {
+        "group": "batch",
+        "hookPhase": "Succeeded",
+        "hookType": "PostSync",
+        "images": [
+          "ghcr.io/ngqkhai/lynk-url-service@sha256:d75616bcc83519cf54d317ff2a4015d71c31ce3430a35ffbc475b562e78fdc71"
+        ],
+        "kind": "Job",
+        "message": "Reached expected number of succeeded pods",
+        "name": "lynk-postsync-smoke",
+        "namespace": "lynk-aws",
+        "status": "Synced",
+        "syncPhase": "PostSync",
+        "version": "v1"
+      }
+    ],
+    "operation_phase": "Succeeded",
+    "operation_revision": "032e64a28dcb84d8049d7297e070cc10b0319c33",
+    "sync": {
+      "comparedTo": {
+        "destination": {
+          "namespace": "lynk-aws",
+          "server": "https://kubernetes.default.svc"
+        },
+        "source": {
+          "helm": {
+            "releaseName": "lynk-services",
+            "valueFiles": ["values-aws.yaml", "values-aws-demo.yaml"]
+          },
+          "path": "infra/k8s/helm/lynk-services",
+          "repoURL": "https://github.com/ngqkhai/lynk-url-shortener.git",
+          "targetRevision": "aws-demo"
+        }
+      },
+      "revision": "032e64a28dcb84d8049d7297e070cc10b0319c33",
+      "status": "Synced"
+    }
+  },
+  "disk_free_Ki": 20885932,
+  "node_usage": "NAME             CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   \nip-10-70-1-221   738m         36%      2429Mi          63%         \n",
+  "nodes": [
+    {
+      "allocatable": {
+        "cpu": "2",
+        "ephemeral-storage": "28579587664",
+        "hugepages-1Gi": "0",
+        "hugepages-2Mi": "0",
+        "memory": "3924200Ki",
+        "pods": "110"
+      },
+      "conditions": [
+        {
+          "status": "False",
+          "type": "MemoryPressure"
+        },
+        {
+          "status": "False",
+          "type": "DiskPressure"
+        },
+        {
+          "status": "False",
+          "type": "PIDPressure"
+        },
+        {
+          "status": "True",
+          "type": "Ready"
+        }
+      ],
+      "name": "ip-10-70-1-221"
+    }
+  ],
+  "observed_at_utc": "2026-10-16T23:35:34.581818+00:00",
+  "workloads": [
+    {
+      "images": [
+        "ghcr.io/ngqkhai/lynk-auth-service@sha256:97330ac696e7fb58a86ec3a0d5306f8fa618812b67b25169de101e9e80cf62f0"
+      ],
+      "kind": "Deployment",
+      "name": "auth-service",
+      "readyReplicas": 1,
+      "replicas": 1,
+      "uid": "360ffe63-9882-4091-b38a-80a55f88fdc7"
+    },
+    {
+      "images": [
+        "ghcr.io/ngqkhai/lynk-redirect-service@sha256:295990b789a6799b4b7e7d105c309d98ddfd0e76f5a24bee2ee3f4ba2d9196f2"
+      ],
+      "kind": "Deployment",
+      "name": "redirect-service",
+      "readyReplicas": 1,
+      "replicas": 1,
+      "uid": "6516073f-ccae-41b9-8c9c-ea47486c4863"
+    },
+    {
+      "images": [
+        "ghcr.io/ngqkhai/lynk-url-service@sha256:d75616bcc83519cf54d317ff2a4015d71c31ce3430a35ffbc475b562e78fdc71"
+      ],
+      "kind": "Deployment",
+      "name": "url-service",
+      "readyReplicas": 1,
+      "replicas": 1,
+      "uid": "5a09f762-1f96-447e-acfb-2c954000c26c"
+    },
+    {
+      "containers": [
+        {
+          "imageID": "ghcr.io/ngqkhai/lynk-auth-service@sha256:97330ac696e7fb58a86ec3a0d5306f8fa618812b67b25169de101e9e80cf62f0",
+          "name": "auth-service",
+          "ready": true,
+          "restartCount": 0
+        }
+      ],
+      "kind": "Pod",
+      "name": "auth-service-7d8dcdfc7-jbdld",
+      "phase": "Running",
+      "uid": "6d7f46c9-8059-4d54-a5a2-ff62975450b4"
+    },
+    {
+      "containers": [
+        {
+          "imageID": "ghcr.io/ngqkhai/lynk-auth-service@sha256:97330ac696e7fb58a86ec3a0d5306f8fa618812b67b25169de101e9e80cf62f0",
+          "name": "migrate",
+          "ready": false,
+          "restartCount": 0
+        }
+      ],
+      "kind": "Pod",
+      "name": "auth-service-migrate-d5s9q",
+      "phase": "Succeeded",
+      "uid": "25d8fdc1-f685-4ee6-8863-9302d63c1be7"
+    },
+    {
+      "containers": [
+        {
+          "imageID": "ghcr.io/ngqkhai/lynk-url-service@sha256:d75616bcc83519cf54d317ff2a4015d71c31ce3430a35ffbc475b562e78fdc71",
+          "name": "smoke",
+          "ready": false,
+          "restartCount": 0
+        }
+      ],
+      "kind": "Pod",
+      "name": "lynk-postsync-smoke-xgfwp",
+      "phase": "Succeeded",
+      "uid": "4d8793d6-e89a-412e-b6bd-70d71a1b4d04"
+    },
+    {
+      "containers": [
+        {
+          "imageID": "ghcr.io/ngqkhai/lynk-redirect-service@sha256:295990b789a6799b4b7e7d105c309d98ddfd0e76f5a24bee2ee3f4ba2d9196f2",
+          "name": "redirect-service",
+          "ready": true,
+          "restartCount": 0
+        }
+      ],
+      "kind": "Pod",
+      "name": "redirect-service-554dd5585f-hwvdl",
+      "phase": "Running",
+      "uid": "576a4924-05a4-401b-b77a-4de373d7b3cd"
+    },
+    {
+      "containers": [
+        {
+          "imageID": "ghcr.io/ngqkhai/lynk-redirect-service@sha256:295990b789a6799b4b7e7d105c309d98ddfd0e76f5a24bee2ee3f4ba2d9196f2",
+          "name": "migrate",
+          "ready": false,
+          "restartCount": 0
+        }
+      ],
+      "kind": "Pod",
+      "name": "redirect-service-migrate-fj7ms",
+      "phase": "Succeeded",
+      "uid": "bdf09fca-eead-4742-a529-c6d2a91b9f31"
+    },
+    {
+      "containers": [
+        {
+          "imageID": "ghcr.io/ngqkhai/lynk-url-service@sha256:d75616bcc83519cf54d317ff2a4015d71c31ce3430a35ffbc475b562e78fdc71",
+          "name": "url-service",
+          "ready": true,
+          "restartCount": 0
+        }
+      ],
+      "kind": "Pod",
+      "name": "url-service-58c4749599-4phmm",
+      "phase": "Running",
+      "uid": "836144e6-da29-4c7b-8f83-b2f049cf06d6"
+    },
+    {
+      "containers": [
+        {
+          "imageID": "ghcr.io/ngqkhai/lynk-url-service@sha256:d75616bcc83519cf54d317ff2a4015d71c31ce3430a35ffbc475b562e78fdc71",
+          "name": "migrate",
+          "ready": false,
+          "restartCount": 0
+        }
+      ],
+      "kind": "Pod",
+      "name": "url-service-migrate-dd745",
+      "phase": "Succeeded",
+      "uid": "7e69dc75-b946-4423-9297-3732cf8a8c0e"
+    },
+    {
+      "failed": 0,
+      "kind": "Job",
+      "name": "auth-service-migrate",
+      "succeeded": 1,
+      "uid": "cde694d7-0244-4b79-8bb3-994c75a787e1"
+    },
+    {
+      "failed": 0,
+      "kind": "Job",
+      "name": "lynk-postsync-smoke",
+      "succeeded": 1,
+      "uid": "8ce7ea0d-f5ed-43db-809f-8b80c9804905"
+    },
+    {
+      "failed": 0,
+      "kind": "Job",
+      "name": "redirect-service-migrate",
+      "succeeded": 1,
+      "uid": "f36e2f41-4cee-4f09-8580-a07f4fe357b4"
+    },
+    {
+      "failed": 0,
+      "kind": "Job",
+      "name": "url-service-migrate",
+      "succeeded": 1,
+      "uid": "6f89b545-173a-4cf6-90bd-a04b10ab05ad"
+    }
+  ]
+}

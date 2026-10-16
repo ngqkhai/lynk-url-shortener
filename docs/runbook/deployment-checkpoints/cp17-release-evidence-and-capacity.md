@@ -2,7 +2,7 @@
 
 ## Bài toán thực tế của Lynk
 
-CP16 đã chuyển Application `aws-demo` sang annotation tracking và self-heal, giữ prune tắt. CP17 phải chứng minh một source revision đi hết đường CI → image digests → release artifact → promotion sang branch `aws-demo` → Argo sync → runtime verification. GitHub `LYNK_DEPLOY_MODE` hiện đang `paused`; trạng thái thực tế cần đọc lại ngay trước mỗi lần đổi gate. Mục tiêu là phát hành có kiểm soát, truy được source SHA tới image đang chạy, biết giới hạn capacity của node `t3.medium`, và có quy trình rollback không giả định migration schema có thể đảo ngược.
+CP16 đã chuyển Application `aws-demo` sang annotation tracking và self-heal, giữ prune tắt. CP17 phải chứng minh một source revision đi hết đường CI → image digests → release artifact → promotion sang branch `aws-demo` → Argo sync → runtime verification. Ở preflight đầu CP17, GitHub `LYNK_DEPLOY_MODE` còn `paused`; sau acceptance nó là `argocd`. Trạng thái thực tế cần đọc lại ngay trước mỗi lần đổi gate. Mục tiêu là phát hành có kiểm soát, truy được source SHA tới image đang chạy, biết giới hạn capacity của node `t3.medium`, và có quy trình rollback không giả định migration schema có thể đảo ngược.
 
 Một lần chạy YAML hợp lệ không phải bằng chứng deployment. Bằng chứng cần nối commit, release manifest, digest, promotion commit, Argo operation/revision, Pod image IDs và smoke result. Nếu một mắt xích thiếu, trạng thái phát hành phải là chưa được xác minh.
 
@@ -83,6 +83,10 @@ Tác động là thay logic CI và host helper read-only; không thay chart pin,
 
 **Tiêu chí đạt:** release được truy từ source tới Pod; Argo Synced/Healthy; migration/smoke/runtime/public checks pass; identity của PVC/service/domain/EIP giữ; capacity/headroom được đo; race/timeout/rollback tests pass; legacy SSM path không chạy. Bài tập cá nhân không chặn tiến độ.
 
+### Kế hoạch thu hồi legacy writer sau acceptance
+
+Sau khi run `38981715213` và public functional smoke đạt, CP17 gốc yêu cầu thu hồi legacy deployment permissions. Thay inline policy `release-deploy` của riêng role `lynk-github-deploy` bằng explicit Deny all; giữ role/address/import để audit và chặn cả các role sessions cũ theo policy identity hiện tại. Giữ status role và bootstrap role. Resource scope dự kiến chỉ `aws_iam_role_policy.deploy`, update in place; không xóa IAM role, SSM document, data hay workload. Đọc full Terraform plan, chỉ apply saved plan khi không có create/destroy hoặc thay đổi ngoài policy này. Kiểm chứng IAM simulation: legacy role bị explicitDeny, status role vẫn allowed cho status document và implicitDeny cho deploy document. Nếu sai scope thì dừng trước apply; phục hồi quyền legacy, nếu thật sự cần, bằng policy trước đó trong Git và một Terraform plan được review, không đổi deployment mode tự động. Ghi rõ đây là bước kết thúc CP17 sau repair acceptance, không phải thay IAM để sửa lỗi worktree.
+
 ## Implementation có giải thích
 
 `RELEASE_SHA` là metadata từ `github.sha`, không phải secret. Buildx truyền giá trị đó vào mỗi runner image; Dockerfile có `ARG RELEASE_SHA=local` để local build vẫn chạy, rồi lưu thành `ENV RELEASE_SHA`. Zod chấp nhận `local` hoặc đúng 40 ký tự hex; local Docker builds dùng production runtime vẫn được khởi động với danh tính `local`. Release checker mới là nơi bắt buộc danh tính phải khớp release CI. Startup event của Pino ghi `{ releaseSha }`; status checker lấy các log mới nhất và yêu cầu tìm thấy SHA mong đợi. Đồng thời nó đối chiếu `imageID` của Pod với digest và đọc Argo revision/smoke. Không cần đổi chart đã pin `87eb226` hay mở rộng promotion khỏi một values file. `promote_release.py --repository-root` xác định checkout chứa values; script vẫn chỉ nhận đúng đường dẫn allowlist bên trong checkout đó.
@@ -95,11 +99,31 @@ Fixtures mới thực thi nguyên shell step từ YAML với local bare remote, 
 
 ## Verification, troubleshooting và recovery
 
-CI xanh, image digests và anonymous pulls chứng minh package được tạo, không chứng minh workload đã đổi. Promotion attempt đầu fail trước mọi write do path root mismatch; lần CI kế tiếp dừng ở local E2E vì runtime schema từ chối danh tính local. Branch run `38978920903` chứng minh sửa tương thích local qua E2E và các checks CI. Hook-history fallback cần đúng revision, hook phase thành công cùng URL digest. Lần main release tiếp theo vẫn cần required reviewer; sau khi duyệt, workflow phải xác nhận Argo revision, imageIDs, startup `releaseSha`, PostSync smoke cùng public readiness mới được ghi deployed. Nếu rollout hoặc checker fail, workflow giữ trạng thái fail và chỉ tự revert desired values khi cả hai branch head vẫn khớp đúng release; rollback đó không đảo migration/data.
+CI xanh, image digests và anonymous pulls chứng minh package được tạo, không chứng minh workload đã đổi. Promotion attempt đầu fail trước mọi write do path root mismatch; lần CI kế tiếp dừng ở local E2E vì runtime schema từ chối danh tính local. Branch run `38978920903` chứng minh sửa tương thích local qua E2E và các checks CI. Hook-history fallback cần đúng revision, hook phase thành công cùng URL digest. Mỗi main release cần required reviewer; sau khi duyệt, workflow phải xác nhận Argo revision, imageIDs, startup `releaseSha`, PostSync smoke cùng public readiness mới được ghi deployed. Nếu rollout hoặc checker fail, workflow giữ trạng thái fail và chỉ tự revert desired values khi cả hai branch head vẫn khớp đúng release; rollback đó không đảo migration/data.
+
+### Acceptance thực tế sau sửa
+
+Run [38981715213](https://github.com/ngqkhai/lynk-url-shortener/actions/runs/38981715213) kết thúc success cho source `9673a0e9d66a7d1336913953126a306037e4089f`. Workflow-only diff thực sự kích build ba image; checksum artifact, anonymous pulls, main quality/E2E và reviewer gate đã đạt. Promotion commit `032e64a28dcb84d8049d7297e070cc10b0319c33` chỉ thay allowlisted values file. So sánh YAML parsed với kết quả `promoted_values` xác nhận các values khác được giữ nguyên.
+
+SSM command `60af301a-184e-45b5-b5cf-0d15000ede2b` chạy **114.906 giây**, lần lượt báo chờ revision, Synced, Healthy và operation, rồi trả Healthy với đúng source SHA/promotion revision. Đây là bằng chứng live rằng execution timeout và chờ hội tụ đã được tách đúng. Argo operation Succeeded, ba PreSync migration Jobs và PostSync smoke Succeeded; ba service Pods Ready và imageIDs khớp manifest. Chi tiết được lọc trong [runtime evidence](evidence/cp17-runtime.json).
+
+Public functional smoke qua HTTPS đã pass opaque gateway, owner isolation, refresh reuse/logout, replication trước first click và public redirect 302; readiness cuối trả 200. Suite chạy AWS/SSM mode với fault injection tắt; nó tạo tài khoản/link test riêng, không phải kiểm thử read-only. Runner tạm đã được xóa và tokens chỉ ở memory. [Identity evidence](evidence/cp17-protected-identities.json) xác nhận 20 resource identities trước/sau bằng nhau, gồm UID/volume của Kafka PVC và Traefik certificate PVC; EIP attachment và DNS A vẫn `3.1.88.80`.
+
+Snapshot sau rollout lúc `2026-10-16T23:35:34Z`: node dùng 738m CPU (36%) và 2429Mi RAM (63%), root filesystem còn `20885932Ki`; node Ready, không có pressure. Trước rollout dùng 425m/21% CPU, 2315Mi/60% RAM, CPUCreditBalance khoảng 575.99 lúc 23:22Z, instance `t3.medium` Standard. Đây là quan sát một lần, không phải capacity guarantee hoặc benchmark throughput. Recovery/race được kiểm thử local; không tuyên bố đã fault-inject hay rollback production.
+
+### Legacy writer retirement và giới hạn IAM simulation
+
+Sau acceptance, saved Terraform plan chỉ update `aws_iam_role_policy.deploy`: `0 add, 1 change, 0 destroy`. Apply thay inline `release-deploy` của role `lynk-github-deploy` bằng Deny all; role vẫn tồn tại cho audit, status/bootstrap roles giữ nguyên. Post-apply plan là no-op. Gate `argocd` tiếp tục tắt workflow writer cũ; ngay cả nếu ai đổi mode, legacy principal hiện không có quyền deploy. Re-enable legacy không phải rollback ứng dụng thường ngày: cần review policy/gate riêng.
+
+Kiểm chứng ban đầu bằng `SimulatePrincipalPolicy` báo explicitDeny cho cả status role, không matched deny statement và `AllowedByOrganizations=false`. Đọc live policy cho thấy status policy không đổi; Organizations API xác nhận account là management account, vốn được [SCP exemption](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html). [IAM API](https://docs.aws.amazon.com/IAM/latest/APIReference/API_SimulatePrincipalPolicy.html) nêu simulation có thể khác môi trường live. Nguyên nhân cụ thể của kết quả principal simulator chưa xác minh, không gọi nó là bằng chứng status role mất quyền hay tự nới quyền để làm xanh.
+
+Điều chỉnh verification: lấy các inline policies live và dùng `SimulateCustomPolicy` để cô lập lớp identity policy. Legacy SendCommand/S3 write là explicitDeny; status role allowed cho đúng status document/instance và implicitDeny cho deploy document; bootstrap StartSession vẫn allowed. Các assertions đều đạt, không có missing context. Phương pháp này không mô phỏng SCP, trust hoặc resource policies. Bằng chứng live OIDC/SSM success có trước retirement; full plan và readback xác nhận chỉ legacy inline policy đổi. [IAM evidence](evidence/cp17-iam-retirement.json) giữ cả discrepancy lẫn kết quả mới, không bỏ dấu vết kiểm tra thất bại ban đầu.
 
 ## Tự học
 
 **Dự đoán:** `kubectl top node` báo CPU thấp nhưng tổng requests gần hết allocatable; Pod surge có schedule được không? Argo `Healthy` nhưng release SHA trong status khác CI commit thì có thể kết luận gì? Rollback chart có đảo DDL đã chạy không?
+
+**Dự đoán thêm:** tại sao 28 tests xanh vẫn bỏ lọt lỗi worktree? Timeout SSM 900 giây có tự chờ Argo không? Vì sao no-op phải được xử lý trước guard yêu cầu đúng một staged file?
 
 **Bài read-only:** từ CP17 evidence tính tổng requests và surge headroom; lần theo một digest từ artifact qua values tới Pod `imageID`; đọc workflow failure guard nhưng không dispatch/deploy.
 
@@ -107,6 +131,8 @@ Phần thực hành cá nhân chờ bạn hoàn thành.
 
 <details>
 <summary>Lời giải</summary>
+
+Các tests cũ chỉ xét helpers/strings, chưa chạy cả shell step trong deployment worktree thiếu scripts. SSM timeout chỉ giới hạn execution; polling phải được viết rõ. No-op có zero staged files nên phải được nhận diện trước guard dành cho write.
 
 Scheduler dựa requests, nên usage thấp không đảm bảo surge schedule được. SHA không khớp nghĩa là release chain chưa được chứng minh hoặc đang quan sát revision khác; không gọi là deploy thành công. Helm/Argo rollback đổi workload state, không tự rollback schema/database.
 
@@ -121,3 +147,5 @@ Scheduler dựa requests, nên usage thấp không đảm bảo surge schedule �
 - [SSM command plugin timeout](https://docs.aws.amazon.com/systems-manager/latest/userguide/documents-command-ssm-plugin-reference.html) — execution timeout không tự tạo polling.
 - [GitHub Actions concurrency](https://docs.github.com/en/actions/using-jobs/using-concurrency) — serialize promotion work.
 - [GitHub deployment environments](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) — reviewers and branch rules.
+
+- [AWS disabling temporary role permissions](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_disable-perms.html) — policy thay đổi quyền của các role sessions hiện có.

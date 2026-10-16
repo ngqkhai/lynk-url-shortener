@@ -57,20 +57,15 @@ resource "aws_iam_role_policy" "bootstrap" {
   role = aws_iam_role.bootstrap.name
 }
 
+# CP17: Argo acceptance run 38981715213 verified the replacement delivery path.
+# Retain the legacy principal for audit, but revoke all deployment capabilities.
 resource "aws_iam_role_policy" "deploy" {
   name = "release-deploy"
   policy = jsonencode({
     Statement = [{
-      Action   = ["s3:GetObject", "s3:PutObject"]
-      Effect   = "Allow"
-      Resource = "${aws_s3_bucket.artifacts.arn}/releases/*"
-      }, {
-      Action   = "ssm:SendCommand"
-      Effect   = "Allow"
-      Resource = ["arn:aws:ec2:ap-southeast-1:231136241975:instance/${aws_instance.node.id}", "arn:aws:ssm:ap-southeast-1:231136241975:document/LynkDeploy"]
-      }, {
-      Action   = ["ssm:GetCommandInvocation"]
-      Effect   = "Allow"
+      Sid      = "RetiredAfterArgoAcceptance"
+      Action   = "*"
+      Effect   = "Deny"
       Resource = "*"
     }]
     Version = "2012-10-17"

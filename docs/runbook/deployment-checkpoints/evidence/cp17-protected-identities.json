@@ -1,0 +1,729 @@
+{
+  "resource_count": 20,
+  "before": [
+    {
+      "kind": "Deployment",
+      "name": "auth-service",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "360ffe63-9882-4091-b38a-80a55f88fdc7"
+    },
+    {
+      "kind": "Deployment",
+      "name": "lynk-redis",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "eb3ff079-289e-4307-b828-0b461edea7a2"
+    },
+    {
+      "kind": "Deployment",
+      "name": "redirect-service",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "6516073f-ccae-41b9-8c9c-ea47486c4863"
+    },
+    {
+      "kind": "Deployment",
+      "name": "url-service",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "5a09f762-1f96-447e-acfb-2c954000c26c"
+    },
+    {
+      "kind": "Ingress",
+      "name": "lynk-auth-me",
+      "namespace": "lynk-aws",
+      "rules": [
+        {
+          "host": "lynk.codes",
+          "http": {
+            "paths": [
+              {
+                "backend": {
+                  "service": {
+                    "name": "auth-service",
+                    "port": {
+                      "number": 3004
+                    }
+                  }
+                },
+                "path": "/api/v1/auth/me",
+                "pathType": "Prefix"
+              }
+            ]
+          }
+        }
+      ],
+      "tls": null,
+      "uid": "7a29ae2e-d727-4807-a4a7-238ceadc2895"
+    },
+    {
+      "kind": "Ingress",
+      "name": "lynk-auth-public",
+      "namespace": "lynk-aws",
+      "rules": [
+        {
+          "host": "lynk.codes",
+          "http": {
+            "paths": [
+              {
+                "backend": {
+                  "service": {
+                    "name": "auth-service",
+                    "port": {
+                      "number": 3004
+                    }
+                  }
+                },
+                "path": "/api/v1/auth",
+                "pathType": "Prefix"
+              }
+            ]
+          }
+        }
+      ],
+      "tls": null,
+      "uid": "43db6bc4-d93c-41bd-9b11-55b89be4f57c"
+    },
+    {
+      "kind": "Ingress",
+      "name": "lynk-public",
+      "namespace": "lynk-aws",
+      "rules": [
+        {
+          "host": "lynk.codes",
+          "http": {
+            "paths": [
+              {
+                "backend": {
+                  "service": {
+                    "name": "url-service",
+                    "port": {
+                      "number": 3001
+                    }
+                  }
+                },
+                "path": "/health",
+                "pathType": "Prefix"
+              },
+              {
+                "backend": {
+                  "service": {
+                    "name": "url-service",
+                    "port": {
+                      "number": 3001
+                    }
+                  }
+                },
+                "path": "/documentation",
+                "pathType": "Prefix"
+              },
+              {
+                "backend": {
+                  "service": {
+                    "name": "redirect-service",
+                    "port": {
+                      "number": 3002
+                    }
+                  }
+                },
+                "path": "/",
+                "pathType": "Prefix"
+              }
+            ]
+          }
+        }
+      ],
+      "tls": null,
+      "uid": "7e7d923e-afef-4df2-937a-3596dcc735e9"
+    },
+    {
+      "kind": "Ingress",
+      "name": "lynk-urls",
+      "namespace": "lynk-aws",
+      "rules": [
+        {
+          "host": "lynk.codes",
+          "http": {
+            "paths": [
+              {
+                "backend": {
+                  "service": {
+                    "name": "url-service",
+                    "port": {
+                      "number": 3001
+                    }
+                  }
+                },
+                "path": "/api/v1/urls",
+                "pathType": "Prefix"
+              }
+            ]
+          }
+        }
+      ],
+      "tls": null,
+      "uid": "09308a77-1cd9-43ab-8a45-dba62df21cda"
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "name": "data-kafka-0",
+      "namespace": "lynk-aws",
+      "phase": "Bound",
+      "uid": "3d265835-77fe-4c44-ba7f-2a3fae7d16cb",
+      "volumeName": "pvc-3d265835-77fe-4c44-ba7f-2a3fae7d16cb"
+    },
+    {
+      "clusterIP": "10.43.144.94",
+      "kind": "Service",
+      "name": "auth-service",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "http",
+          "port": 3004,
+          "protocol": "TCP",
+          "targetPort": "http"
+        }
+      ],
+      "selector": {
+        "app": "auth-service"
+      },
+      "uid": "920964a0-5019-4f55-8105-baec09569646"
+    },
+    {
+      "clusterIP": "10.43.54.12",
+      "kind": "Service",
+      "name": "auth-service-gateway",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "https",
+          "port": 3005,
+          "protocol": "TCP",
+          "targetPort": 3005
+        }
+      ],
+      "selector": {
+        "app": "auth-service"
+      },
+      "uid": "1706ad7e-26d6-4c89-998b-a9fd91022382"
+    },
+    {
+      "clusterIP": "10.43.69.73",
+      "kind": "Service",
+      "name": "kafka",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "broker",
+          "port": 9092,
+          "protocol": "TCP",
+          "targetPort": 9092
+        }
+      ],
+      "selector": {
+        "app": "kafka"
+      },
+      "uid": "b88b9526-4a17-48c5-82e4-f41abb233451"
+    },
+    {
+      "clusterIP": "None",
+      "kind": "Service",
+      "name": "kafka-headless",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "broker",
+          "port": 9092,
+          "protocol": "TCP",
+          "targetPort": 9092
+        },
+        {
+          "name": "controller",
+          "port": 9093,
+          "protocol": "TCP",
+          "targetPort": 9093
+        }
+      ],
+      "selector": {
+        "app": "kafka"
+      },
+      "uid": "79267fe8-d446-4fcc-bdc5-1b76a16ee66d"
+    },
+    {
+      "clusterIP": "10.43.170.65",
+      "kind": "Service",
+      "name": "lynk-redis-master",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "redis",
+          "port": 6379,
+          "protocol": "TCP",
+          "targetPort": "redis"
+        }
+      ],
+      "selector": {
+        "app": "lynk-redis"
+      },
+      "uid": "1f617ec6-5bd1-4f9b-83e2-6eda1b1a507a"
+    },
+    {
+      "clusterIP": "10.43.234.123",
+      "kind": "Service",
+      "name": "redirect-service",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "http",
+          "port": 3002,
+          "protocol": "TCP",
+          "targetPort": "http"
+        }
+      ],
+      "selector": {
+        "app": "redirect-service"
+      },
+      "uid": "ba264c7e-c5e6-4130-974b-f8ed4b856818"
+    },
+    {
+      "clusterIP": "10.43.129.199",
+      "kind": "Service",
+      "name": "url-service",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "http",
+          "port": 3001,
+          "protocol": "TCP",
+          "targetPort": "http"
+        }
+      ],
+      "selector": {
+        "app": "url-service"
+      },
+      "uid": "7f1aba01-9c3c-4d5c-8c30-a8959ada27a3"
+    },
+    {
+      "images": ["apache/kafka:4.2.2"],
+      "kind": "StatefulSet",
+      "name": "kafka",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "8603ad82-cc5e-4616-9a4f-7632ad2b67f0"
+    },
+    {
+      "kind": "Deployment",
+      "name": "traefik",
+      "namespace": "traefik",
+      "replicas": 1,
+      "uid": "bb939600-7151-427c-8054-73cd8573ab2d"
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "name": "traefik",
+      "namespace": "traefik",
+      "phase": "Bound",
+      "uid": "d44a3678-d5a7-4a96-a9e4-5745ebf9b0ab",
+      "volumeName": "pvc-d44a3678-d5a7-4a96-a9e4-5745ebf9b0ab"
+    },
+    {
+      "clusterIP": "10.43.1.157",
+      "kind": "Service",
+      "name": "traefik",
+      "namespace": "traefik",
+      "ports": [
+        {
+          "name": "web",
+          "port": 80,
+          "protocol": "TCP",
+          "targetPort": "web"
+        },
+        {
+          "name": "websecure",
+          "port": 443,
+          "protocol": "TCP",
+          "targetPort": "websecure"
+        }
+      ],
+      "selector": {
+        "app.kubernetes.io/instance": "traefik-traefik",
+        "app.kubernetes.io/name": "traefik"
+      },
+      "uid": "1e217f17-fe3f-44ff-82b4-faf6bf455dbf"
+    }
+  ],
+  "after": [
+    {
+      "kind": "Deployment",
+      "name": "auth-service",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "360ffe63-9882-4091-b38a-80a55f88fdc7"
+    },
+    {
+      "kind": "Deployment",
+      "name": "lynk-redis",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "eb3ff079-289e-4307-b828-0b461edea7a2"
+    },
+    {
+      "kind": "Deployment",
+      "name": "redirect-service",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "6516073f-ccae-41b9-8c9c-ea47486c4863"
+    },
+    {
+      "kind": "Deployment",
+      "name": "url-service",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "5a09f762-1f96-447e-acfb-2c954000c26c"
+    },
+    {
+      "kind": "Ingress",
+      "name": "lynk-auth-me",
+      "namespace": "lynk-aws",
+      "rules": [
+        {
+          "host": "lynk.codes",
+          "http": {
+            "paths": [
+              {
+                "backend": {
+                  "service": {
+                    "name": "auth-service",
+                    "port": {
+                      "number": 3004
+                    }
+                  }
+                },
+                "path": "/api/v1/auth/me",
+                "pathType": "Prefix"
+              }
+            ]
+          }
+        }
+      ],
+      "tls": null,
+      "uid": "7a29ae2e-d727-4807-a4a7-238ceadc2895"
+    },
+    {
+      "kind": "Ingress",
+      "name": "lynk-auth-public",
+      "namespace": "lynk-aws",
+      "rules": [
+        {
+          "host": "lynk.codes",
+          "http": {
+            "paths": [
+              {
+                "backend": {
+                  "service": {
+                    "name": "auth-service",
+                    "port": {
+                      "number": 3004
+                    }
+                  }
+                },
+                "path": "/api/v1/auth",
+                "pathType": "Prefix"
+              }
+            ]
+          }
+        }
+      ],
+      "tls": null,
+      "uid": "43db6bc4-d93c-41bd-9b11-55b89be4f57c"
+    },
+    {
+      "kind": "Ingress",
+      "name": "lynk-public",
+      "namespace": "lynk-aws",
+      "rules": [
+        {
+          "host": "lynk.codes",
+          "http": {
+            "paths": [
+              {
+                "backend": {
+                  "service": {
+                    "name": "url-service",
+                    "port": {
+                      "number": 3001
+                    }
+                  }
+                },
+                "path": "/health",
+                "pathType": "Prefix"
+              },
+              {
+                "backend": {
+                  "service": {
+                    "name": "url-service",
+                    "port": {
+                      "number": 3001
+                    }
+                  }
+                },
+                "path": "/documentation",
+                "pathType": "Prefix"
+              },
+              {
+                "backend": {
+                  "service": {
+                    "name": "redirect-service",
+                    "port": {
+                      "number": 3002
+                    }
+                  }
+                },
+                "path": "/",
+                "pathType": "Prefix"
+              }
+            ]
+          }
+        }
+      ],
+      "tls": null,
+      "uid": "7e7d923e-afef-4df2-937a-3596dcc735e9"
+    },
+    {
+      "kind": "Ingress",
+      "name": "lynk-urls",
+      "namespace": "lynk-aws",
+      "rules": [
+        {
+          "host": "lynk.codes",
+          "http": {
+            "paths": [
+              {
+                "backend": {
+                  "service": {
+                    "name": "url-service",
+                    "port": {
+                      "number": 3001
+                    }
+                  }
+                },
+                "path": "/api/v1/urls",
+                "pathType": "Prefix"
+              }
+            ]
+          }
+        }
+      ],
+      "tls": null,
+      "uid": "09308a77-1cd9-43ab-8a45-dba62df21cda"
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "name": "data-kafka-0",
+      "namespace": "lynk-aws",
+      "phase": "Bound",
+      "uid": "3d265835-77fe-4c44-ba7f-2a3fae7d16cb",
+      "volumeName": "pvc-3d265835-77fe-4c44-ba7f-2a3fae7d16cb"
+    },
+    {
+      "clusterIP": "10.43.144.94",
+      "kind": "Service",
+      "name": "auth-service",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "http",
+          "port": 3004,
+          "protocol": "TCP",
+          "targetPort": "http"
+        }
+      ],
+      "selector": {
+        "app": "auth-service"
+      },
+      "uid": "920964a0-5019-4f55-8105-baec09569646"
+    },
+    {
+      "clusterIP": "10.43.54.12",
+      "kind": "Service",
+      "name": "auth-service-gateway",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "https",
+          "port": 3005,
+          "protocol": "TCP",
+          "targetPort": 3005
+        }
+      ],
+      "selector": {
+        "app": "auth-service"
+      },
+      "uid": "1706ad7e-26d6-4c89-998b-a9fd91022382"
+    },
+    {
+      "clusterIP": "10.43.69.73",
+      "kind": "Service",
+      "name": "kafka",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "broker",
+          "port": 9092,
+          "protocol": "TCP",
+          "targetPort": 9092
+        }
+      ],
+      "selector": {
+        "app": "kafka"
+      },
+      "uid": "b88b9526-4a17-48c5-82e4-f41abb233451"
+    },
+    {
+      "clusterIP": "None",
+      "kind": "Service",
+      "name": "kafka-headless",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "broker",
+          "port": 9092,
+          "protocol": "TCP",
+          "targetPort": 9092
+        },
+        {
+          "name": "controller",
+          "port": 9093,
+          "protocol": "TCP",
+          "targetPort": 9093
+        }
+      ],
+      "selector": {
+        "app": "kafka"
+      },
+      "uid": "79267fe8-d446-4fcc-bdc5-1b76a16ee66d"
+    },
+    {
+      "clusterIP": "10.43.170.65",
+      "kind": "Service",
+      "name": "lynk-redis-master",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "redis",
+          "port": 6379,
+          "protocol": "TCP",
+          "targetPort": "redis"
+        }
+      ],
+      "selector": {
+        "app": "lynk-redis"
+      },
+      "uid": "1f617ec6-5bd1-4f9b-83e2-6eda1b1a507a"
+    },
+    {
+      "clusterIP": "10.43.234.123",
+      "kind": "Service",
+      "name": "redirect-service",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "http",
+          "port": 3002,
+          "protocol": "TCP",
+          "targetPort": "http"
+        }
+      ],
+      "selector": {
+        "app": "redirect-service"
+      },
+      "uid": "ba264c7e-c5e6-4130-974b-f8ed4b856818"
+    },
+    {
+      "clusterIP": "10.43.129.199",
+      "kind": "Service",
+      "name": "url-service",
+      "namespace": "lynk-aws",
+      "ports": [
+        {
+          "name": "http",
+          "port": 3001,
+          "protocol": "TCP",
+          "targetPort": "http"
+        }
+      ],
+      "selector": {
+        "app": "url-service"
+      },
+      "uid": "7f1aba01-9c3c-4d5c-8c30-a8959ada27a3"
+    },
+    {
+      "images": ["apache/kafka:4.2.2"],
+      "kind": "StatefulSet",
+      "name": "kafka",
+      "namespace": "lynk-aws",
+      "replicas": 1,
+      "uid": "8603ad82-cc5e-4616-9a4f-7632ad2b67f0"
+    },
+    {
+      "kind": "Deployment",
+      "name": "traefik",
+      "namespace": "traefik",
+      "replicas": 1,
+      "uid": "bb939600-7151-427c-8054-73cd8573ab2d"
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "name": "traefik",
+      "namespace": "traefik",
+      "phase": "Bound",
+      "uid": "d44a3678-d5a7-4a96-a9e4-5745ebf9b0ab",
+      "volumeName": "pvc-d44a3678-d5a7-4a96-a9e4-5745ebf9b0ab"
+    },
+    {
+      "clusterIP": "10.43.1.157",
+      "kind": "Service",
+      "name": "traefik",
+      "namespace": "traefik",
+      "ports": [
+        {
+          "name": "web",
+          "port": 80,
+          "protocol": "TCP",
+          "targetPort": "web"
+        },
+        {
+          "name": "websecure",
+          "port": 443,
+          "protocol": "TCP",
+          "targetPort": "websecure"
+        }
+      ],
+      "selector": {
+        "app.kubernetes.io/instance": "traefik-traefik",
+        "app.kubernetes.io/name": "traefik"
+      },
+      "uid": "1e217f17-fe3f-44ff-82b4-faf6bf455dbf"
+    }
+  ],
+  "all_equal": true,
+  "eip_before": [
+    {
+      "PublicIp": "3.1.88.80",
+      "AllocationId": "eipalloc-0f88a7eca6c3660d1",
+      "AssociationId": "eipassoc-0d9ab4bf56ed84463",
+      "InstanceId": "i-03bb7dcb94ec8bd21"
+    }
+  ],
+  "eip_after": [
+    {
+      "PublicIp": "3.1.88.80",
+      "AllocationId": "eipalloc-0f88a7eca6c3660d1",
+      "AssociationId": "eipassoc-0d9ab4bf56ed84463",
+      "InstanceId": "i-03bb7dcb94ec8bd21"
+    }
+  ],
+  "dns_a": ["3.1.88.80"]
+}
