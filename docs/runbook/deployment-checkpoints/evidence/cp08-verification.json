@@ -1,0 +1,278 @@
+{
+  "checkpoint": "CP08",
+  "verified_at": "2026-10-16T10:03:38.952867+00:00",
+  "all_seven_table_counts_and_checksums_equal": true,
+  "data_before": {
+    "observed_at": "2026-10-16T09:41:44.633746+00:00",
+    "services": {
+      "auth-service": {
+        "database": "lynk_auth",
+        "role": "lynk_auth",
+        "server_version": "18.6 (653b019)",
+        "tables": {
+          "users": {
+            "rows": 9,
+            "checksum": "4b28dd13b11bb96112626799c43c23a5"
+          },
+          "refresh_sessions": {
+            "rows": 9,
+            "checksum": "546d640476fd1fcf7816b8e68574a38e"
+          },
+          "refresh_tokens": {
+            "rows": 12,
+            "checksum": "a0898f9eba61a440fa91f1e0c27e3e6f"
+          },
+          "access_tokens": {
+            "rows": 3,
+            "checksum": "0f106e43c71db2ae5a5acc008b4bc87f"
+          }
+        }
+      },
+      "url-service": {
+        "database": "lynk_urls",
+        "role": "lynk_url",
+        "server_version": "18.6 (653b019)",
+        "tables": {
+          "urls": {
+            "rows": 6,
+            "checksum": "89a9981f62ba60c6be689d8400ebe1bf"
+          },
+          "url_outbox": {
+            "rows": 1,
+            "checksum": "343d53f6675efce414d292c1503ac5d1"
+          }
+        }
+      },
+      "redirect-service": {
+        "database": "lynk_redirects",
+        "role": "lynk_redirect",
+        "server_version": "18.6 (653b019)",
+        "tables": {
+          "redirect_urls": {
+            "rows": 6,
+            "checksum": "aa3a4ee350b729ff3c93cb6f6fa1614e"
+          }
+        }
+      }
+    },
+    "scope": "Seven allowlisted application tables; counts and non-security aggregate MD5 only"
+  },
+  "data_after": {
+    "observed_at": "2026-10-16T10:02:02.274725+00:00",
+    "services": {
+      "auth-service": {
+        "database": "lynk_auth",
+        "role": "lynk_auth",
+        "server_version": "18.6 (653b019)",
+        "tables": {
+          "users": {
+            "rows": 9,
+            "checksum": "4b28dd13b11bb96112626799c43c23a5"
+          },
+          "refresh_sessions": {
+            "rows": 9,
+            "checksum": "546d640476fd1fcf7816b8e68574a38e"
+          },
+          "refresh_tokens": {
+            "rows": 12,
+            "checksum": "a0898f9eba61a440fa91f1e0c27e3e6f"
+          },
+          "access_tokens": {
+            "rows": 3,
+            "checksum": "0f106e43c71db2ae5a5acc008b4bc87f"
+          }
+        }
+      },
+      "url-service": {
+        "database": "lynk_urls",
+        "role": "lynk_url",
+        "server_version": "18.6 (653b019)",
+        "tables": {
+          "urls": {
+            "rows": 6,
+            "checksum": "89a9981f62ba60c6be689d8400ebe1bf"
+          },
+          "url_outbox": {
+            "rows": 1,
+            "checksum": "343d53f6675efce414d292c1503ac5d1"
+          }
+        }
+      },
+      "redirect-service": {
+        "database": "lynk_redirects",
+        "role": "lynk_redirect",
+        "server_version": "18.6 (653b019)",
+        "tables": {
+          "redirect_urls": {
+            "rows": 6,
+            "checksum": "aa3a4ee350b729ff3c93cb6f6fa1614e"
+          }
+        }
+      }
+    },
+    "scope": "Seven allowlisted application tables; counts and non-security aggregate MD5 only"
+  },
+  "comparison_before_smoke": true,
+  "pvcs_unchanged": true,
+  "pvcs": [
+    {
+      "namespace": "lynk-aws",
+      "name": "data-kafka-0",
+      "uid": "3d265835-77fe-4c44-ba7f-2a3fae7d16cb",
+      "volume": "pvc-3d265835-77fe-4c44-ba7f-2a3fae7d16cb",
+      "phase": "Bound"
+    },
+    {
+      "namespace": "traefik",
+      "name": "traefik",
+      "uid": "d44a3678-d5a7-4a96-a9e4-5745ebf9b0ab",
+      "volume": "pvc-d44a3678-d5a7-4a96-a9e4-5745ebf9b0ab",
+      "phase": "Bound"
+    }
+  ],
+  "workload_uids_images_unchanged": true,
+  "workloads": [
+    {
+      "namespace": "kube-system",
+      "name": "coredns",
+      "kind": "Deployment",
+      "uid": "f4bba9cd-11af-4d17-a8e2-10680897f96c",
+      "images": ["rancher/mirrored-coredns-coredns:1.14.7"]
+    },
+    {
+      "namespace": "kube-system",
+      "name": "local-path-provisioner",
+      "kind": "Deployment",
+      "uid": "fb124d81-06af-4f21-8c6a-4383a15020dd",
+      "images": ["rancher/local-path-provisioner:v0.0.37"]
+    },
+    {
+      "namespace": "kube-system",
+      "name": "metrics-server",
+      "kind": "Deployment",
+      "uid": "659fbc38-f881-4df4-866b-83656be7fc37",
+      "images": ["rancher/mirrored-metrics-server:v0.9.0"]
+    },
+    {
+      "namespace": "lynk-aws",
+      "name": "auth-service",
+      "kind": "Deployment",
+      "uid": "360ffe63-9882-4091-b38a-80a55f88fdc7",
+      "images": [
+        "ghcr.io/ngqkhai/lynk-auth-service@sha256:f4e2964249d4c3679807ae5d315b34831e0bbdf7970119da830b74f42f8fd65c"
+      ]
+    },
+    {
+      "namespace": "lynk-aws",
+      "name": "lynk-redis",
+      "kind": "Deployment",
+      "uid": "eb3ff079-289e-4307-b828-0b461edea7a2",
+      "images": ["redis:8-alpine"]
+    },
+    {
+      "namespace": "lynk-aws",
+      "name": "redirect-service",
+      "kind": "Deployment",
+      "uid": "6516073f-ccae-41b9-8c9c-ea47486c4863",
+      "images": [
+        "ghcr.io/ngqkhai/lynk-redirect-service@sha256:8bec2f41a7431722f156d6447bd13c9dfe5d54fedd771566b531661d1ee11e82"
+      ]
+    },
+    {
+      "namespace": "lynk-aws",
+      "name": "url-service",
+      "kind": "Deployment",
+      "uid": "5a09f762-1f96-447e-acfb-2c954000c26c",
+      "images": [
+        "ghcr.io/ngqkhai/lynk-url-service@sha256:1d916376cf6afce9c98e6a4517e2dfb2356b285c1cd2d02c62e55a487e70c978"
+      ]
+    },
+    {
+      "namespace": "traefik",
+      "name": "traefik",
+      "kind": "Deployment",
+      "uid": "bb939600-7151-427c-8054-73cd8573ab2d",
+      "images": ["docker.io/traefik:v3.7.13"]
+    },
+    {
+      "namespace": "lynk-aws",
+      "name": "kafka",
+      "kind": "StatefulSet",
+      "uid": "8603ad82-cc5e-4616-9a4f-7632ad2b67f0",
+      "images": ["apache/kafka:4.2.2"]
+    }
+  ],
+  "memory_measurements": {
+    "before": {
+      "command_id": "ebce3bab-f156-44f1-a1d5-bbc2c10e3928",
+      "observed_at": "2026-10-16T09:44:39.497677+00:00",
+      "memory_kib": {
+        "MemTotal": 1951736,
+        "MemAvailable": 213416
+      },
+      "k3s": "active",
+      "node_metrics": "ip-10-70-1-221   227m   11%   1490Mi   78%",
+      "pod_metrics": "kube-system   coredns-577d995dff-tjf5k                  2m    16Mi    \nkube-system   local-path-provisioner-6858d854cf-2mpzt   1m    9Mi     \nkube-system   metrics-server-778c4649b4-xv862           6m    27Mi    \nlynk-aws      auth-service-8474c59dd-l45cp              1m    44Mi    \nlynk-aws      kafka-0                                   12m   385Mi   \nlynk-aws      lynk-redis-5fc4c9cfcc-m8vx2               7m    4Mi     \nlynk-aws      redirect-service-68cb8774d4-5z28z         40m   56Mi    \nlynk-aws      url-service-69fc4b99b6-bw8vn              39m   47Mi    \ntraefik       traefik-bf9974664-ndq8t                   2m    27Mi"
+    },
+    "after": {
+      "command_id": "93140b4f-7611-46b0-81d1-920304bcd1f4",
+      "observed_at": "2026-10-16T10:01:59.837918+00:00",
+      "memory_kib": {
+        "MemTotal": 3924200,
+        "MemAvailable": 2177500
+      },
+      "k3s": "active",
+      "node_metrics": "ip-10-70-1-221   195m   9%    2140Mi   55%",
+      "pod_metrics": "kube-system   coredns-577d995dff-tjf5k                  3m    67Mi    \nkube-system   local-path-provisioner-6858d854cf-2mpzt   1m    44Mi    \nkube-system   metrics-server-778c4649b4-xv862           6m    69Mi    \nlynk-aws      auth-service-8474c59dd-l45cp              1m    91Mi    \nlynk-aws      kafka-0                                   57m   449Mi   \nlynk-aws      lynk-redis-5fc4c9cfcc-m8vx2               8m    14Mi    \nlynk-aws      redirect-service-68cb8774d4-5z28z         63m   61Mi    \nlynk-aws      url-service-69fc4b99b6-bw8vn              3m    39Mi    \ntraefik       traefik-bf9974664-ndq8t                   10m   118Mi"
+    }
+  },
+  "runtime_verification": {
+    "command_id": "31bd4d60-3f38-44e9-97d3-01c3d422c6a6",
+    "status": "Success",
+    "response_code": 0,
+    "output": "active\nnode/ip-10-70-1-221 condition met\ndeployment \"auth-service\" successfully rolled out\ndeployment \"url-service\" successfully rolled out\ndeployment \"redirect-service\" successfully rolled out\ndeployment \"lynk-redis\" successfully rolled out\npartitioned roll out complete: 1 new pods have been updated...\ndeployment \"traefik\" successfully rolled out\n",
+    "error": ""
+  },
+  "post_resize_plan_exit_code": 0,
+  "smoke": {
+    "command_id": "4c11faa6-7924-434c-8854-624541d3750a",
+    "status": "Success",
+    "response_code": 0,
+    "output": "PASS: opaque gateway, owner isolation, refresh reuse, logout, public redirect, replication before first click\n",
+    "error": "",
+    "failure_tests": false,
+    "source_sha256": "ab3082c925064cc891ccd351259bb8b4b117d8d075eb1b0392b82db8bb9f0a6f"
+  },
+  "ec2_status_checks": {
+    "system": "ok",
+    "instance": "ok",
+    "observed_at": "2026-10-16T10:04:17.903051+00:00"
+  },
+  "status": "runtime_verified_pending_branch_ci",
+  "ci": "Pending checkpoint branch push",
+  "readiness_observation": {
+    "samples": 434,
+    "requested_interval_seconds": 2,
+    "request_timeout_seconds": 3,
+    "non_200_windows": [
+      {
+        "last_200_before": "2026-10-16T09:45:59.878868+00:00",
+        "first_non_200": "2026-10-16T09:46:02.152323+00:00",
+        "samples": 82,
+        "failure_types": ["URLError", 503],
+        "last_non_200": "2026-10-16T09:52:09.136780+00:00",
+        "first_200_after": "2026-10-16T09:52:11.312887+00:00"
+      },
+      {
+        "last_200_before": "2026-10-16T09:59:37.223018+00:00",
+        "first_non_200": "2026-10-16T09:59:40.570859+00:00",
+        "samples": 29,
+        "failure_types": ["URLError", 503],
+        "last_non_200": "2026-10-16T10:00:58.641103+00:00",
+        "first_200_after": "2026-10-16T10:01:00.801850+00:00"
+      }
+    ],
+    "raw_evidence": "cp08-readiness.jsonl",
+    "scope": "Request-start timestamps; brackets only, not exact downtime or latency benchmark"
+  }
+}

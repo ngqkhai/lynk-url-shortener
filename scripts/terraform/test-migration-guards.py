@@ -13,6 +13,43 @@ spec.loader.exec_module(guards)
 
 
 class MigrationGuards(unittest.TestCase):
+    def resize_fixture(self):
+        return {"resource_changes": [{"address": "aws_instance.node", "change": {
+            "actions": ["update"],
+            "before": {"instance_type": "t3.small", "public_ip": "192.0.2.1", "root_block_device": [{"volume_size": 30}], "user_data_replace_on_change": None},
+            "after": {"instance_type": "t3.medium", "public_ip": None, "root_block_device": [{"volume_size": 30}], "user_data_replace_on_change": False},
+            "after_unknown": {"public_ip": True},
+        }}]}
+
+    def test_resize_accepts_only_type_with_narrow_provider_normalization(self):
+        result = guards.check_resize_plan(self.resize_fixture(), "t3.small", "t3.medium")
+        self.assertEqual(result["computed_unknowns"], ["public_ip"])
+        self.assertTrue(result["provider_default_normalization"])
+
+    def test_resize_rejects_disk_userdata_replacement_and_address_changes(self):
+        for mutation in ["disk", "userdata", "replace", "address"]:
+            plan = self.resize_fixture()
+            change = plan["resource_changes"][0]["change"]
+            if mutation == "disk":
+                change["after"]["root_block_device"][0]["volume_size"] = 60
+            elif mutation == "userdata":
+                change["after"]["user_data_replace_on_change"] = True
+            elif mutation == "replace":
+                change["actions"] = ["delete", "create"]
+            else:
+                change["after"]["public_ip"] = "192.0.2.2"
+                change["after_unknown"]["public_ip"] = False
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                guards.check_resize_plan(plan, "t3.small", "t3.medium")
+
+    def test_resize_rejects_other_resource_updates_and_larger_instances(self):
+        plan = self.resize_fixture()
+        plan["resource_changes"].append({"address": "aws_eip.node", "change": {"actions": ["update"]}})
+        with self.assertRaises(ValueError):
+            guards.check_resize_plan(plan, "t3.small", "t3.medium")
+        with self.assertRaises(ValueError):
+            guards.check_resize_plan(self.resize_fixture(), "t3.medium", "t3.large")
+
     def test_retention_preserves_intrinsics_properties_and_outputs(self):
         original = "Resources:\n  Node:\n    Type: AWS::EC2::Instance\n    Properties:\n      SubnetId: !Ref Subnet\nOutputs:\n  NodeId: {Value: !Ref Node}\n"
         candidate = guards.retain_template(original, ["Node"])

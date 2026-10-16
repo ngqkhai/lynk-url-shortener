@@ -62,6 +62,43 @@ def check_import_plan(plan, mapping):
     return {"imports": len(expected), "creates": 0, "updates": 0, "deletes": 0}
 
 
+def check_resize_plan(plan, source_type, target_type):
+    if {source_type, target_type} != {"t3.small", "t3.medium"}:
+        raise ValueError("Only the agreed small/medium resize or its recovery is allowed")
+    resources = plan.get("resource_changes", [])
+    if any(resource["change"].get("importing") for resource in resources):
+        raise ValueError("Resize must not import additional bindings")
+    changes = [resource for resource in resources if resource["change"]["actions"] != ["no-op"]]
+    if len(changes) != 1 or changes[0]["address"] != "aws_instance.node":
+        raise ValueError("Resize must change only the existing node")
+    change = changes[0]["change"]
+    if change["actions"] != ["update"] or change.get("replace_paths"):
+        raise ValueError("Resize must not create, destroy or replace resources")
+    before, after = change["before"], change["after"]
+    if before["instance_type"] != source_type or after["instance_type"] != target_type:
+        raise ValueError("Unexpected instance types")
+    differences = {key for key in set(before) | set(after) if before.get(key) != after.get(key)}
+    if not differences <= {"instance_type", "public_ip", "public_dns", "user_data_replace_on_change"}:
+        raise ValueError("Resize includes unrelated attribute changes")
+    computed = sorted(differences & {"public_ip", "public_dns"})
+    for key in computed:
+        if change.get("after_unknown", {}).get(key) is not True:
+            raise ValueError("Public address fields may only become computed unknowns")
+    normalized = "user_data_replace_on_change" in differences
+    if normalized and not (
+        before.get("user_data_replace_on_change") is None
+        and after.get("user_data_replace_on_change") is False
+    ):
+        raise ValueError("Unexpected UserData lifecycle policy change")
+    return {
+        "updates": 1, "creates": 0, "deletes": 0, "replacement": False,
+        "from_type": source_type, "to_type": target_type,
+        "configured_change": "instance_type",
+        "computed_unknowns": computed,
+        "provider_default_normalization": normalized,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -73,6 +110,10 @@ def main():
     check = commands.add_parser("check-import-plan")
     check.add_argument("--plan", required=True)
     check.add_argument("--mapping", required=True)
+    resize = commands.add_parser("check-resize-plan")
+    resize.add_argument("--plan", required=True)
+    resize.add_argument("--from-type", required=True)
+    resize.add_argument("--to-type", required=True)
     args = parser.parse_args()
     if args.command == "retain":
         body = json.loads(Path(args.template_response).read_text())["TemplateBody"]
@@ -85,10 +126,14 @@ def main():
         with Path(args.output).open("x") as output:
             output.write(candidate)
         print(json.dumps({"stack": args.stack, "resources": len(names), "policy_only": True}))
-    else:
+    elif args.command == "check-import-plan":
         print(json.dumps(check_import_plan(
             json.loads(Path(args.plan).read_text()),
             json.loads(Path(args.mapping).read_text()),
+        )))
+    else:
+        print(json.dumps(check_resize_plan(
+            json.loads(Path(args.plan).read_text()), args.from_type, args.to_type,
         )))
 
 

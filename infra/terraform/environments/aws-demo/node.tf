@@ -11,7 +11,7 @@ resource "aws_instance" "node" {
   hibernation                          = false
   iam_instance_profile                 = aws_iam_instance_profile.node.name
   instance_initiated_shutdown_behavior = "stop"
-  instance_type                        = "t3.small"
+  instance_type                        = "t3.medium"
   monitoring                           = false
   placement_partition_number           = 0
   private_ip                           = "10.70.1.221"

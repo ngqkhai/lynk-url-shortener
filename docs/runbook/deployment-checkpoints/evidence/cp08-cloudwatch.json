@@ -1,0 +1,104 @@
+{
+  "checkpoint": "CP08",
+  "source": "AWS CloudWatch GetMetricStatistics",
+  "instance_id": "i-03bb7dcb94ec8bd21",
+  "period_seconds": 3600,
+  "statistics": ["Average", "Minimum", "Maximum"],
+  "metrics": {
+    "CPUCreditBalance": {
+      "Label": "CPUCreditBalance",
+      "Datapoints": [
+        {
+          "Timestamp": "2026-10-16T10:38:00+07:00",
+          "Average": 576.0,
+          "Minimum": 576.0,
+          "Maximum": 576.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-10-16T11:38:00+07:00",
+          "Average": 576.0,
+          "Minimum": 576.0,
+          "Maximum": 576.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-10-16T12:38:00+07:00",
+          "Average": 575.3083086402779,
+          "Minimum": 573.5944472833334,
+          "Maximum": 576.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-10-16T13:38:00+07:00",
+          "Average": 575.9608196638889,
+          "Minimum": 575.5298359666666,
+          "Maximum": 576.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-10-16T14:38:00+07:00",
+          "Average": 576.0,
+          "Minimum": 576.0,
+          "Maximum": 576.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-10-16T15:38:00+07:00",
+          "Average": 576.0,
+          "Minimum": 576.0,
+          "Maximum": 576.0,
+          "Unit": "Count"
+        }
+      ]
+    },
+    "CPUUtilization": {
+      "Label": "CPUUtilization",
+      "Datapoints": [
+        {
+          "Timestamp": "2026-10-16T10:38:00+07:00",
+          "Average": 13.259542245441839,
+          "Minimum": 12.215186717854115,
+          "Maximum": 15.061951040309923,
+          "Unit": "Percent"
+        },
+        {
+          "Timestamp": "2026-10-16T11:38:00+07:00",
+          "Average": 13.220255933993373,
+          "Minimum": 12.097986173730087,
+          "Maximum": 14.641821946169772,
+          "Unit": "Percent"
+        },
+        {
+          "Timestamp": "2026-10-16T12:38:00+07:00",
+          "Average": 16.58651424250925,
+          "Minimum": 12.522928130732033,
+          "Maximum": 51.22187515659712,
+          "Unit": "Percent"
+        },
+        {
+          "Timestamp": "2026-10-16T13:38:00+07:00",
+          "Average": 13.540049498264668,
+          "Minimum": 12.421328816486492,
+          "Maximum": 15.645501503097545,
+          "Unit": "Percent"
+        },
+        {
+          "Timestamp": "2026-10-16T14:38:00+07:00",
+          "Average": 13.567233156362361,
+          "Minimum": 12.319237601899353,
+          "Maximum": 15.15707330087374,
+          "Unit": "Percent"
+        },
+        {
+          "Timestamp": "2026-10-16T15:38:00+07:00",
+          "Average": 12.025910514632853,
+          "Minimum": 10.11683528058801,
+          "Maximum": 18.051203413560902,
+          "Unit": "Percent"
+        }
+      ]
+    }
+  },
+  "scope": "Observed historical datapoints before maintenance, not a benchmark or future capacity guarantee"
+}

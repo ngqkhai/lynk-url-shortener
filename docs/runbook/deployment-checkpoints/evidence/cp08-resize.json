@@ -1,0 +1,75 @@
+{
+  "checkpoint": "CP08",
+  "started_at": "2026-10-16T09:45:52.508329+00:00",
+  "base_commit": "575cc140f1fedc4482d865a0228526b5b0d65d64",
+  "previous_ci": {
+    "id": 38881785875,
+    "conclusion": "success"
+  },
+  "pre_maintenance_plan": {
+    "updates": 1,
+    "creates": 0,
+    "deletes": 0,
+    "replacement": false,
+    "from_type": "t3.small",
+    "to_type": "t3.medium",
+    "configured_change": "instance_type",
+    "computed_unknowns": ["public_dns", "public_ip"],
+    "provider_default_normalization": true
+  },
+  "before": {
+    "instance_id": "i-03bb7dcb94ec8bd21",
+    "instance_type": "t3.small",
+    "eni_id": "eni-06551b4cd2fbd6599",
+    "volume_id": "vol-09662942cb90152da",
+    "public_ip": "3.1.88.80",
+    "cpu_credits": "standard"
+  },
+  "status": "runtime_verified_pending_branch_ci",
+  "stopped_at": "2026-10-16T09:46:22.508313+00:00",
+  "snapshot": {
+    "id": "snap-04c1d516e74600500",
+    "encrypted": true,
+    "volume_id": "vol-09662942cb90152da",
+    "state": "completed",
+    "created_while_instance_stopped": true,
+    "private": true,
+    "completed_observed_at": "2026-10-16T09:58:17.724181+00:00",
+    "volume_size_gib": 30
+  },
+  "plan_adjustment": {
+    "at": "2026-10-16T09:51:16.610512+00:00",
+    "reason": "Snapshot remains pending; restore public service while asynchronous point-in-time transfer proceeds",
+    "small_restart_requested": true,
+    "snapshot_point_remains_cleanly_stopped": "2026-10-16T09:46:24.135000+00:00",
+    "resize_gate_still_requires_completed_snapshot": true,
+    "snapshot_observer_stopped": "Only local observer process; AWS snapshot not cancelled"
+  },
+  "final_plan": {
+    "updates": 1,
+    "creates": 0,
+    "deletes": 0,
+    "replacement": false,
+    "from_type": "t3.small",
+    "to_type": "t3.medium",
+    "configured_change": "instance_type",
+    "computed_unknowns": ["public_dns", "public_ip"],
+    "provider_default_normalization": true
+  },
+  "resize_apply_started_at": "2026-10-16T09:59:31.689918+00:00",
+  "apply": {
+    "added": 0,
+    "changed": 1,
+    "destroyed": 0
+  },
+  "after": {
+    "instance_id": "i-03bb7dcb94ec8bd21",
+    "instance_type": "t3.medium",
+    "volume_id": "vol-09662942cb90152da",
+    "eni_id": "eni-06551b4cd2fbd6599",
+    "public_ip": "3.1.88.80",
+    "cpu_credits": "standard",
+    "verified_at": "2026-10-16T10:01:11.224605+00:00"
+  },
+  "verification": "cp08-verification.json"
+}

@@ -5,7 +5,7 @@ This document includes historical execution snapshots. [CP01](deployment-checkpo
 ## Configuration
 
 - AWS profile: `ngqkhai-dev`; region: `ap-southeast-1`. STS identity verified 2026-10-09 using local SSO credentials.
-- Compute: one `t3.small` (2 vCPU / 2 GiB), gp3 30 GiB, CPU credits Standard. Treat capacity as an experiment until rollout/recovery/load gates pass.
+- Compute after [CP08](deployment-checkpoints/cp08-capacity-resize.md): one `t3.medium` (2 vCPU / 4 GiB), same gp3 30 GiB, CPU credits Standard. Capacity still requires the ArgoCD/rollout gates; do not increase beyond medium, enable Unlimited or add HA automatically.
 - Kubernetes: single-node K3s, Helm-managed Traefik and Lynk; managed PostgreSQL on Neon Free.
 - Neon project: `restless-water-85518233`; branch `production`.
 - Domain: `lynk.codes`; authoritative DNS at Name.com.
@@ -25,7 +25,7 @@ This document includes historical execution snapshots. [CP01](deployment-checkpo
 
 ## Cost guardrails
 
-Estimated 730-hour baseline: t3.small $19.27 + 30 GiB gp3 $2.88 + one IPv4 $3.65 = $25.80/month, before AWS credits, traffic/snapshot costs and tax. Neon bills separately. Free account expiration and credit remaining must be checked in Billing. No automatic account upgrade or instance resize.
+Historical pre-migration estimate for 730 hours on t3.small: $19.27 + 30 GiB gp3 $2.88 + one IPv4 $3.65 = $25.80/month before credits, traffic/snapshots and tax. This is not a current bill or a t3.medium estimate. CP08 adds a retained pre-resize EBS snapshot and changes compute size; actual charges have not been measured here. Neon bills separately. Check Billing for account expiration/credits. No automatic account upgrade, Unlimited mode, HA or resize beyond the agreed t3.medium.
 
 ## Rollback and teardown
 
