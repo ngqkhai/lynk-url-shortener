@@ -78,10 +78,13 @@ jobs:
           pip install -r infra/ansible/requirements.txt cfn-lint==1.57.2
           ansible-galaxy collection install -r infra/ansible/requirements.yml
           python3 scripts/ansible/test-bootstrap.py
+          python3 scripts/ansible/test-rotate-mtls.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           python3 scripts/cd/test-workflow-gates.py
           python3 scripts/secrets/vault-bundle.py check
           python3 scripts/secrets/test-vault-bundle.py
+          python3 scripts/secrets/test-mtls-pki.py
+          ansible-playbook -i infra/ansible/inventory.yml infra/ansible/rotate-mtls.yml --syntax-check
           cfn-lint infra/aws/stack.yaml infra/aws/automation.yaml
           bash -n scripts/cd/deploy.sh scripts/bootstrap-aws-platform.sh
           curl -fsS https://get.helm.sh/helm-v3.21.2-linux-amd64.tar.gz -o /tmp/helm.tar.gz

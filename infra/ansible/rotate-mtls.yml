@@ -1,0 +1,159 @@
+- name: Rotate Lynk mTLS material using an explicit staged or finalized phase
+  hosts: lynk
+  gather_facts: false
+  vars:
+    rotation_root: /opt/lynk/mtls-rotation
+    runtime_root: /opt/lynk/secrets
+    auth_namespace: lynk-aws
+    runtime_mtls_files: [ca.crt, server.crt, server.key, client.crt, client.key]
+  tasks:
+    - name: Create root-owned temporary rotation directory
+      ansible.builtin.file:
+        path: '{{ rotation_root }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+      no_log: true
+
+    - name: Stage leaf identities and trust material on the node
+      ansible.builtin.copy:
+        src: '{{ lynk_mtls_source_dir }}/{{ item }}'
+        dest: '{{ rotation_root }}/{{ item }}'
+        owner: root
+        group: root
+        mode: '0600'
+      loop: [ca.crt, server.crt, server.key, client.crt, client.key]
+      no_log: true
+      diff: false
+
+    - name: Stage trust bundle for overlap phase
+      ansible.builtin.copy:
+        src: '{{ lynk_mtls_overlap_file }}'
+        dest: '{{ rotation_root }}/ca-overlap.crt'
+        owner: root
+        group: root
+        mode: '0600'
+      when: lynk_mtls_phase == 'stage'
+      no_log: true
+      diff: false
+
+    - name: Install client verifier helper
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../..//scripts/ansible/mtls-secret.py'
+        dest: '{{ rotation_root }}/mtls-secret.py'
+        owner: root
+        group: root
+        mode: '0700'
+      no_log: true
+
+    - name: Install overlap trust in CA Secret
+      ansible.builtin.command:
+        argv:
+          [
+            /usr/bin/python3,
+            '{{ rotation_root }}/mtls-secret.py',
+            ca,
+            '{{ rotation_root }}',
+            '{{ rotation_root }}/ca-overlap.crt',
+          ]
+      when: lynk_mtls_phase == 'stage'
+      no_log: true
+      changed_when: true
+
+    - name: Install new server identity and overlap trust
+      ansible.builtin.command:
+        argv:
+          [
+            /usr/bin/python3,
+            '{{ rotation_root }}/mtls-secret.py',
+            server,
+            '{{ rotation_root }}',
+            '{{ rotation_root }}/ca-overlap.crt',
+          ]
+      when: lynk_mtls_phase == 'stage'
+      no_log: true
+      changed_when: true
+
+    - name: Install new-only server identity and trust
+      ansible.builtin.command:
+        argv:
+          [
+            /usr/bin/python3,
+            '{{ rotation_root }}/mtls-secret.py',
+            server,
+            '{{ rotation_root }}',
+            '',
+          ]
+      when: lynk_mtls_phase == 'finalize'
+      no_log: true
+      changed_when: true
+
+    - name: Restart auth to load the staged or finalized server identity
+      ansible.builtin.command:
+        argv:
+          [
+            /usr/local/bin/kubectl,
+            rollout,
+            restart,
+            deployment/auth-service,
+            -n,
+            '{{ auth_namespace }}',
+          ]
+      no_log: true
+      changed_when: true
+
+    - name: Wait for auth rollout to finish
+      ansible.builtin.command:
+        argv:
+          [
+            /usr/local/bin/kubectl,
+            rollout,
+            status,
+            deployment/auth-service,
+            -n,
+            '{{ auth_namespace }}',
+            '--timeout=180s',
+          ]
+      changed_when: false
+
+    - name: Install new client identity for Traefik
+      ansible.builtin.command:
+        argv:
+          [
+            /usr/bin/python3,
+            '{{ rotation_root }}/mtls-secret.py',
+            client,
+            '{{ rotation_root }}',
+            '',
+          ]
+      when: lynk_mtls_phase == 'stage'
+      no_log: true
+      changed_when: true
+
+    - name: Set new CA-only trust after successful staged smoke
+      ansible.builtin.command:
+        argv:
+          [/usr/bin/python3, '{{ rotation_root }}/mtls-secret.py', ca, '{{ rotation_root }}', '']
+      when: lynk_mtls_phase == 'finalize'
+      no_log: true
+      changed_when: true
+
+    - name: Replace only five runtime mTLS files after finalization
+      ansible.builtin.copy:
+        src: '{{ lynk_mtls_source_dir }}/{{ item }}'
+        dest: '{{ runtime_root }}/{{ item }}'
+        owner: root
+        group: root
+        mode: '0600'
+      loop: '{{ runtime_mtls_files }}'
+      when: lynk_mtls_phase == 'finalize'
+      no_log: true
+      diff: false
+
+    - name: Remove temporary rotation material after finalization
+      ansible.builtin.file:
+        path: '{{ rotation_root }}'
+        state: absent
+      when: lynk_mtls_phase == 'finalize'
+      no_log: true

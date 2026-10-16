@@ -1,0 +1,108 @@
+{
+  "checkpoint": "CP10",
+  "preflight_status": "Success",
+  "observed_at": "2026-10-16T21:20:00+07:00",
+  "certificate_metadata": {
+    "lynk-gateway-ca": "subject=CN = Lynk local CA\nissuer=CN = Lynk local CA\nnotBefore=Oct  8 17:32:30 2026 GMT\nnotAfter=Oct  8 17:32:30 2027 GMT",
+    "lynk-gateway-server": "subject=CN = auth-service-gateway\nissuer=CN = Lynk local CA\nnotBefore=Oct  8 17:32:30 2026 GMT\nnotAfter=Oct  8 17:32:30 2027 GMT\nX509v3 Subject Alternative Name: \n    DNS:auth-service-gateway, DNS:auth-service-gateway.lynk-aws.svc, DNS:localhost",
+    "lynk-gateway-client": "subject=CN = lynk-traefik\nissuer=CN = Lynk local CA\nnotBefore=Oct  8 17:32:31 2026 GMT\nnotAfter=Oct  8 17:32:31 2027 GMT"
+  },
+  "secret_bytes_match_runtime_files": {
+    "lynk-gateway-ca": {
+      "ca.crt": true
+    },
+    "lynk-gateway-server": {
+      "ca.crt": true,
+      "server.crt": true,
+      "server.key": true
+    },
+    "lynk-gateway-client": {
+      "tls.crt": true,
+      "tls.key": true
+    },
+    "lynk-jwt-keys": {
+      "jwt-private.pem": true,
+      "jwt-public.pem": true
+    }
+  },
+  "ready_workloads": [
+    {
+      "namespace": "lynk-aws",
+      "kind": "Deployment",
+      "name": "auth-service",
+      "uid": "360ffe63-9882-4091-b38a-80a55f88fdc7",
+      "replicas": 1,
+      "desired": 1
+    },
+    {
+      "namespace": "lynk-aws",
+      "kind": "Deployment",
+      "name": "lynk-redis",
+      "uid": "eb3ff079-289e-4307-b828-0b461edea7a2",
+      "replicas": 1,
+      "desired": 1
+    },
+    {
+      "namespace": "lynk-aws",
+      "kind": "Deployment",
+      "name": "redirect-service",
+      "uid": "6516073f-ccae-41b9-8c9c-ea47486c4863",
+      "replicas": 1,
+      "desired": 1
+    },
+    {
+      "namespace": "lynk-aws",
+      "kind": "Deployment",
+      "name": "url-service",
+      "uid": "5a09f762-1f96-447e-acfb-2c954000c26c",
+      "replicas": 1,
+      "desired": 1
+    },
+    {
+      "namespace": "lynk-aws",
+      "kind": "StatefulSet",
+      "name": "kafka",
+      "uid": "8603ad82-cc5e-4616-9a4f-7632ad2b67f0",
+      "replicas": 1,
+      "desired": 1
+    },
+    {
+      "namespace": "traefik",
+      "kind": "Deployment",
+      "name": "traefik",
+      "uid": "bb939600-7151-427c-8054-73cd8573ab2d",
+      "replicas": 1,
+      "desired": 1
+    }
+  ],
+  "bound_pvcs": [
+    {
+      "namespace": "lynk-aws",
+      "name": "data-kafka-0",
+      "uid": "3d265835-77fe-4c44-ba7f-2a3fae7d16cb",
+      "volume": "pvc-3d265835-77fe-4c44-ba7f-2a3fae7d16cb",
+      "status": "Bound"
+    },
+    {
+      "namespace": "traefik",
+      "name": "traefik",
+      "uid": "d44a3678-d5a7-4a96-a9e4-5745ebf9b0ab",
+      "volume": "pvc-d44a3678-d5a7-4a96-a9e4-5745ebf9b0ab",
+      "status": "Bound"
+    }
+  ],
+  "node_metrics": "ip-10-70-1-221   190m   9%    2448Mi   63%",
+  "ssm_transport_bucket": {
+    "sse": "AES256",
+    "block_public_access_all_flags": true,
+    "versioning": "Disabled"
+  },
+  "delivery_mode": "paused",
+  "preflight_errors": [
+    {
+      "cause": "SSM shell invoked script with /bin/sh; pipefail is not POSIX",
+      "impact": "command stopped at first line, no inspection or mutation",
+      "resolution": "removed pipefail and reran successfully"
+    }
+  ]
+}

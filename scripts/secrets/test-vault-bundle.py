@@ -133,6 +133,32 @@ class VaultBundleTests(unittest.TestCase):
         plain.write_bytes(self.data)
         self.assertNotEqual(self.run_bundle('check', bundle=plain).returncode, 0)
 
+    def test_pack_enforces_fixed_file_contract_and_roundtrips(self):
+        source = self.root / 'pack-source'
+        source.mkdir(mode=0o700)
+        for name in MODULE.NAMES:
+            path = source / name
+            path.write_bytes(self.data)
+            path.chmod(0o600)
+        encrypted = self.root / 'packed.vault'
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), 'pack', '--source-dir', str(source),
+             '--password-file', str(self.password), '--ansible-vault', VAULT,
+             '--output', str(encrypted)], capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(encrypted.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(self.run_bundle('verify', bundle=encrypted).returncode, 0)
+        self.assertNotEqual(subprocess.run(
+            [sys.executable, str(SCRIPT), 'pack', '--source-dir', str(source),
+             '--password-file', str(self.password), '--ansible-vault', VAULT,
+             '--output', str(encrypted)], capture_output=True).returncode, 0)
+        (source / 'unexpected').write_text('fixture')
+        self.assertNotEqual(subprocess.run(
+            [sys.executable, str(SCRIPT), 'pack', '--source-dir', str(source),
+             '--password-file', str(self.password), '--ansible-vault', VAULT,
+             '--output', str(self.root / 'rejected.vault')], capture_output=True).returncode, 0)
+
     def test_password_environment_and_unsafe_password_permissions(self):
         scratch = self.root / 'env-scratch'
         scratch.mkdir(mode=0o700)

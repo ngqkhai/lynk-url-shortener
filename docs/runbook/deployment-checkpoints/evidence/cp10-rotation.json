@@ -1,0 +1,148 @@
+{
+  "checkpoint": "CP10",
+  "status": "completed",
+  "observed_at": "2026-10-16",
+  "delivery_mode": "paused",
+  "ssm_transport": "Online",
+  "terraform_inventory_hosts": 1,
+  "rotation": {
+    "ca_key_vault_encrypted_separate_id": true,
+    "runtime_bundle_files": 11,
+    "runtime_vault_roundtrip": true,
+    "unchanged_runtime_files": {
+      "auth.env": true,
+      "url.env": true,
+      "redirect.env": true,
+      "redis-password": true,
+      "jwt-private.pem": true,
+      "jwt-public.pem": true
+    },
+    "old_new_overlap_certificates": 2,
+    "phase1_auth_rollout_ready": true,
+    "phase1_public_smoke": "Success",
+    "phase2_new_only_auth_rollout_ready": true,
+    "phase2_runtime_files_replaced": 5,
+    "phase2_public_smoke": "Success",
+    "failure_injection": false
+  },
+  "certificates": {
+    "lynk-gateway-ca": {
+      "subject": "subject=CN = Lynk local CA",
+      "issuer": "issuer=CN = Lynk local CA",
+      "valid_to": "Oct 16 14:51:55 2027 GMT"
+    },
+    "lynk-gateway-server": {
+      "subject": "subject=CN = auth-service-gateway",
+      "issuer": "issuer=CN = Lynk local CA",
+      "valid_to": "Oct 16 14:51:55 2027 GMT",
+      "san": "DNS:auth-service-gateway, DNS:auth-service-gateway.lynk-aws.svc, DNS:localhost"
+    },
+    "lynk-gateway-client": {
+      "subject": "subject=CN = lynk-traefik",
+      "issuer": "issuer=CN = Lynk local CA",
+      "valid_to": "Oct 16 14:51:55 2027 GMT"
+    }
+  },
+  "secret_bytes_match_runtime": {
+    "lynk-gateway-ca": {
+      "ca.crt": true
+    },
+    "lynk-gateway-server": {
+      "ca.crt": true,
+      "server.crt": true,
+      "server.key": true
+    },
+    "lynk-gateway-client": {
+      "tls.crt": true,
+      "tls.key": true
+    },
+    "lynk-jwt-keys": {
+      "jwt-private.pem": true,
+      "jwt-public.pem": true
+    }
+  },
+  "workload_uids_and_ready_counts_unchanged": true,
+  "pvc_uids_and_bound_status_unchanged": true,
+  "node_metrics_before": "ip-10-70-1-221   147m   7%    2362Mi   61%",
+  "node_metrics_after": "ip-10-70-1-221   343m   17%   2518Mi   65%",
+  "command_ids": {
+    "preflight": "0f0103af-e1ac-41b5-bd80-6bf280b1648f",
+    "stage_smoke": "4fdee914-9429-41f4-89bf-160bc2f1884d",
+    "post_finalize": "7a01cb03-fe1e-484a-baca-85a11c9f5ab7",
+    "final_smoke": "4aed9f97-db39-42bf-bed2-b019530b018f"
+  },
+  "safe_stops_and_resolutions": [
+    {
+      "phase": "before mutation",
+      "cause": "Terraform binary absent from PATH",
+      "impact": "inventory guard stopped controller before AWS changes",
+      "resolution": "used pinned Terraform 1.16.6 from /tmp and verified exactly one host"
+    },
+    {
+      "phase": "before mutation",
+      "cause": "CA overlap file missing after a stopped local packaging chain",
+      "impact": "stage controller stopped before AWS changes",
+      "resolution": "created and validated two-certificate old+new PEM bundle"
+    },
+    {
+      "phase": "stage",
+      "cause": "relative overlap source path resolved against playbook directory",
+      "impact": "four leaf files copied to mode-0600 staging; no Kubernetes Secret changed",
+      "resolution": "controller now resolves overlap source to absolute path"
+    },
+    {
+      "phase": "stage",
+      "cause": "amazon.aws SSM connection collection absent",
+      "impact": "Ansible recap changed=0 for the failed attempt",
+      "resolution": "installed pinned amazon.aws 10.1.2 and confirmed read-only ping"
+    },
+    {
+      "phase": "finalize",
+      "cause": "ca.crt was not staged for new-only server Secret",
+      "impact": "Secret update failed before kubectl apply and auth restart",
+      "resolution": "stage ca.crt explicitly; rerun finalize successfully"
+    }
+  ],
+  "runtime_recovery_artifacts": {
+    "previous_runtime_bundle_encrypted_and_retained": true,
+    "replacement_bundle_encrypted_and_roundtrip_verified": true,
+    "ca_signing_key_vault_encrypted_separate_id": true,
+    "ca_signing_key_absent_from_host": true,
+    "remote_rotation_staging_removed": true,
+    "runtime_mtls_modes_0600": true,
+    "runtime_directory_mode_0700": true,
+    "ca_signing_key_public_match": true,
+    "temporary_plaintext_pki_and_runtime_removed": true
+  },
+  "host_cleanup_command_id": "78b278f4-224b-4037-9743-8166c2d8285f",
+  "verification": {
+    "pki_fixture_tests": "2 passed",
+    "vault_bundle_tests": "8 passed",
+    "rotation_controller_tests": "3 passed",
+    "bootstrap_controller_tests": "7 passed",
+    "workflow_gate_tests": "4 passed",
+    "ansible_playbook_syntax": "passed",
+    "git_diff_check": "passed"
+  },
+  "tool_versions": {
+    "terraform": "1.16.6",
+    "aws_provider": "6.69.1",
+    "ansible_core": "2.19.3",
+    "amazon_aws_collection": "10.1.2",
+    "openssl": "3.0.13",
+    "session_manager_plugin": "1.2.896.0"
+  },
+  "local_rollback_bundle_test": {
+    "decrypt_roundtrip": true,
+    "old_server_chain": "passed",
+    "old_client_chain": "passed",
+    "restore_modes": "0700 directory and 0600 files",
+    "plaintext_removed": true,
+    "production_rollback_executed": false
+  },
+  "acceptance_smoke": {
+    "synthetic_database_records_created": true,
+    "database_schema_or_ownership_migration": false,
+    "failure_injection": false
+  }
+}
