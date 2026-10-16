@@ -1,0 +1,23 @@
+[Unit]
+Description=Lynk service-scoped Neon database backup (%i)
+After=network-online.target k3s.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+Environment=KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+ExecStart=/usr/local/sbin/lynk-db-backup %i --bucket lynk-db-backups-231136241975-ap-southeast-1
+TimeoutStartSec=3600
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/lynk-db-backups

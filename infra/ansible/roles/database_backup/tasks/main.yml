@@ -1,0 +1,124 @@
+- name: Require the Terraform-managed backup bucket contract
+  ansible.builtin.assert:
+    that:
+      - database_backup_bucket == 'lynk-db-backups-231136241975-ap-southeast-1'
+      - ansible_distribution == 'Ubuntu'
+      - ansible_distribution_release == 'noble'
+      - ansible_architecture == 'x86_64'
+    fail_msg: Database backup host contract does not match the pinned Ubuntu 24.04 amd64 target
+
+- name: Install PostgreSQL repository verification prerequisites
+  ansible.builtin.apt:
+    name: [ca-certificates, gnupg]
+    state: present
+    update_cache: true
+
+- name: Create PostgreSQL repository key directory
+  ansible.builtin.file:
+    path: /usr/share/postgresql-common/pgdg
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install the reviewed PostgreSQL Apt Repository signing key
+  ansible.builtin.copy:
+    src: apt.postgresql.org.asc
+    dest: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+    owner: root
+    group: root
+    mode: '0644'
+    force: true
+
+- name: Inspect PostgreSQL Apt Repository signing key fingerprint
+  ansible.builtin.command:
+    argv:
+      [gpg, --show-keys, --with-colons, /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc]
+  register: pgdg_signing_key
+  changed_when: false
+
+- name: Require the reviewed PostgreSQL repository key fingerprint
+  ansible.builtin.assert:
+    that:
+      - "'B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8' in pgdg_signing_key.stdout"
+    fail_msg: PostgreSQL Apt Repository signing key changed; do not install the client
+
+- name: Configure signed PostgreSQL repository for Ubuntu Noble amd64
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pgdg.sources
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      Types: deb
+      URIs: https://apt.postgresql.org/pub/repos/apt
+      Suites: noble-pgdg
+      Architectures: amd64
+      Components: main
+      Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+
+- name: Install the server-matched PostgreSQL 18.6 client package
+  ansible.builtin.apt:
+    name: postgresql-client-18=18.6-1.pgdg24.04+2
+    state: present
+    update_cache: true
+    allow_downgrade: false
+
+- name: Verify pg_dump and pg_restore client versions
+  ansible.builtin.command:
+    argv: ['/usr/bin/{{ item }}', --version]
+  loop: [pg_dump, pg_restore]
+  register: pg_client_versions
+  changed_when: false
+
+- name: Require PostgreSQL client major and minor version 18.6
+  ansible.builtin.assert:
+    that: "item.stdout is search('18\\.6')"
+    fail_msg: PostgreSQL client must match the observed Neon server 18.6
+  loop: '{{ pg_client_versions.results }}'
+
+- name: Install service-scoped backup executable
+  ansible.builtin.copy:
+    src: '{{ source_root }}/scripts/backups/lynk-db-backup.py'
+    dest: /usr/local/sbin/lynk-db-backup
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Install restricted backup service unit
+  ansible.builtin.copy:
+    src: lynk-db-backup@.service
+    dest: /etc/systemd/system/lynk-db-backup@.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd for database backups
+
+- name: Install staggered daily backup timers
+  ansible.builtin.copy:
+    src: 'lynk-db-backup-{{ item.service }}.timer'
+    dest: '/etc/systemd/system/lynk-db-backup-{{ item.service }}.timer'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { service: url }
+    - { service: redirect }
+    - { service: auth }
+  notify: Reload systemd for database backups
+
+- name: Ensure local backup workspace is root-only
+  ansible.builtin.file:
+    path: /var/lib/lynk-db-backups
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Activate daily database backup timers
+  ansible.builtin.systemd:
+    name: 'lynk-db-backup-{{ item }}.timer'
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: [url, redirect, auth]

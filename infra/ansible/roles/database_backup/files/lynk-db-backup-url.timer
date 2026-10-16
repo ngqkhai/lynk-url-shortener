@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Lynk URL database backup
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+AccuracySec=1min
+Unit=lynk-db-backup@url.service
+
+[Install]
+WantedBy=timers.target

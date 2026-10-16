@@ -4,6 +4,7 @@
   roles:
     - secrets
     - host
+    - database_backup
   post_tasks:
     - name: Apply notified configuration before final version checks
       ansible.builtin.meta: flush_handlers

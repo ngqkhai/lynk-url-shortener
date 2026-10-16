@@ -29,6 +29,7 @@ class BootstrapTests(unittest.TestCase):
         return {name: {"type": "string", "sensitive": False, "value": value} for name, value in {
             "instance_id": "i-0123456789abcdef0",
             "artifact_bucket": "lynk-k3s-dev-artifactbucket-fixture",
+            "database_backup_bucket": "lynk-db-backups-231136241975-ap-southeast-1",
             "region": "ap-southeast-1",
         }.items()}
 
@@ -40,7 +41,7 @@ class BootstrapTests(unittest.TestCase):
         self.assertNotIn("fixture-secret", json.dumps(result))
 
     def test_inventory_rejects_wrong_identity_region_bucket_and_sensitive_contract(self):
-        for field, value in [("instance_id", "127.0.0.1"), ("region", "us-east-1"), ("artifact_bucket", "other-account-bucket")]:
+        for field, value in [("instance_id", "127.0.0.1"), ("region", "us-east-1"), ("artifact_bucket", "other-account-bucket"), ("database_backup_bucket", "wrong-bucket")]:
             changed = self.outputs()
             changed[field]["value"] = value
             with self.subTest(field=field), self.assertRaises(ValueError):

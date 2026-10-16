@@ -11,7 +11,7 @@ import sys
 
 
 def inventory_from_outputs(outputs):
-    required = ["instance_id", "artifact_bucket", "region"]
+    required = ["instance_id", "artifact_bucket", "database_backup_bucket", "region"]
     values = {}
     for name in required:
         entry = outputs[name]
@@ -22,6 +22,8 @@ def inventory_from_outputs(outputs):
         raise ValueError("Invalid EC2 instance ID")
     if not re.fullmatch(r"lynk-k3s-dev-artifactbucket-[a-z0-9]+", values["artifact_bucket"]):
         raise ValueError("Unexpected SSM transport bucket")
+    if values["database_backup_bucket"] != "lynk-db-backups-231136241975-ap-southeast-1":
+        raise ValueError("Unexpected database backup bucket")
     if values["region"] != "ap-southeast-1":
         raise ValueError("Unexpected AWS region")
     host = {
@@ -29,6 +31,7 @@ def inventory_from_outputs(outputs):
         "ansible_connection": "amazon.aws.aws_ssm",
         "ansible_aws_ssm_region": values["region"],
         "ansible_aws_ssm_bucket_name": values["artifact_bucket"],
+        "database_backup_bucket": values["database_backup_bucket"],
         "ansible_python_interpreter": "/usr/bin/python3",
         "ansible_become": True,
         "ansible_become_user": "root",

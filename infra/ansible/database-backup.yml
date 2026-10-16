@@ -1,0 +1,5 @@
+- name: Configure the dedicated Lynk database backup automation
+  hosts: lynk
+  gather_facts: true
+  roles:
+    - database_backup

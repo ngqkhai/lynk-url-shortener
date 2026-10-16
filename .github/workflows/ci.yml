@@ -79,6 +79,7 @@ jobs:
           ansible-galaxy collection install -r infra/ansible/requirements.yml
           python3 scripts/ansible/test-bootstrap.py
           python3 scripts/ansible/test-rotate-mtls.py
+          python3 scripts/backups/test-lynk-db-backup.py
           ansible-playbook -i infra/ansible/inventory.yml infra/ansible/bootstrap.yml --syntax-check
           python3 scripts/cd/test-workflow-gates.py
           python3 scripts/secrets/vault-bundle.py check

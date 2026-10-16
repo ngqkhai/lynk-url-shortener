@@ -1,0 +1,110 @@
+{
+  "checkpoint": "CP11",
+  "databases": [
+    {
+      "database": "lynk_urls",
+      "endpoint_host": "ep-damp-hat-b35j9f5i.c-4.ap-southeast-1.aws.neon.tech",
+      "pooler": false,
+      "role": "lynk_url",
+      "server_version": "18.6 (653b019)",
+      "size_bytes": 7897088
+    },
+    {
+      "database": "lynk_redirects",
+      "endpoint_host": "ep-damp-hat-b35j9f5i.c-4.ap-southeast-1.aws.neon.tech",
+      "pooler": false,
+      "role": "lynk_redirect",
+      "server_version": "18.6 (653b019)",
+      "size_bytes": 7815168
+    },
+    {
+      "database": "lynk_auth",
+      "endpoint_host": "ep-damp-hat-b35j9f5i.c-4.ap-southeast-1.aws.neon.tech",
+      "pooler": false,
+      "role": "lynk_auth",
+      "server_version": "18.6 (653b019)",
+      "size_bytes": 8052736
+    }
+  ],
+  "delivery_mode": "paused",
+  "main_ci_run": "38921678332",
+  "main_commit": "21946e560d715430f654d9b38c596a217a818f4d",
+  "neon": {
+    "branch": "production",
+    "branch_id": "br-autumn-dream-b390pnq2",
+    "branch_state": "ready",
+    "compute_max_cu": 0.25,
+    "compute_min_cu": 0.25,
+    "endpoint_direct": true,
+    "existing_snapshots": [],
+    "history_retention_seconds": 21600,
+    "pooler_enabled": false,
+    "postgres_major": 18,
+    "primary": true,
+    "project_id": "restless-water-85518233",
+    "region": "aws-ap-southeast-1",
+    "snapshot_schedule": []
+  },
+  "neon_project_logical_size_bytes": 55484416,
+  "node": {
+    "instance_type": "t3.medium",
+    "os": "Ubuntu 24.04.5 LTS",
+    "postgresql_client_installed": false
+  },
+  "observed_at": "2026-10-16",
+  "package_metadata_source": "https://apt.postgresql.org/pub/repos/apt/dists/noble-pgdg/main/binary-amd64/Packages.gz",
+  "post_apply": {
+    "apply": {
+      "add": 6,
+      "change": 0,
+      "destroy": 0
+    },
+    "bucket_controls_verified": {
+      "block_public_acls": true,
+      "block_public_policy": true,
+      "default_encryption": "AES256",
+      "deny_insecure_transport": true,
+      "force_destroy": false,
+      "ignore_public_acls": true,
+      "ownership": "BucketOwnerEnforced",
+      "prevent_destroy": true,
+      "restrict_public_buckets": true
+    },
+    "bucket_created": "lynk-db-backups-231136241975-ap-southeast-1",
+    "capacity_readiness_verified": true,
+    "node": {
+      "capacity": {
+        "k3s": "active",
+        "load_average": [0.47, 0.58, 0.58],
+        "memory_available_kib": 2085216,
+        "node_ready": true,
+        "pods_running": 9,
+        "pods_succeeded": 2,
+        "root_disk_available_bytes": 23578587136,
+        "ssm": "Online"
+      },
+      "client_package": "postgresql-client-18=18.6-1.pgdg24.04+2",
+      "pg_dump_version": "18.6",
+      "pg_restore_version": "18.6",
+      "postgresql_client_installed": true
+    },
+    "postgresql_client_installed": true,
+    "postgresql_client_version": "18.6",
+    "systemd_backup_timers_active": true,
+    "terraform_plan": {
+      "add": 6,
+      "change": 0,
+      "destroy": 0,
+      "resources_replaced": 0
+    }
+  },
+  "read_only_ssm_command_id": "bf16fa90-469b-4293-bbe1-e9495202ca96",
+  "status": "applied_and_verified",
+  "storage_preflight": {
+    "dedicated_backup_bucket_candidate": "lynk-db-backups-231136241975-ap-southeast-1",
+    "head_bucket": "404_not_found_in_account_before_apply",
+    "post_apply_bucket_private_and_encrypted": true,
+    "ssm_artifact_bucket_exists": true,
+    "ssm_artifact_bucket_reused_for_backup": false
+  }
+}

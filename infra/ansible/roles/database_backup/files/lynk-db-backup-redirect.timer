@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Lynk redirect database backup
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 UTC
+Persistent=true
+AccuracySec=1min
+Unit=lynk-db-backup@redirect.service
+
+[Install]
+WantedBy=timers.target
